@@ -1,0 +1,21 @@
+# Entorno virtual
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# PyCharm
+.idea/
+
+
+# Variables de entorno
+.env
+
+# Docker Compose local
+#docker-compose.yml
+
+# Logs
+*.log
+logs/
