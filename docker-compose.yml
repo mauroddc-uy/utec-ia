@@ -1,0 +1,16 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: utec_ia_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: utec_ia_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: Inicio1234*
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
