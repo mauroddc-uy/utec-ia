@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UTECia</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200;400;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+</head>
+<body>
+
+  <canvas id="bg"></canvas>
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h3>Conversaciones</h3>
+      <button class="btn-new-chat" id="btnNewChat" title="Nueva conversación">+</button>
+    </div>
+    <div class="sidebar-body" id="sidebarBody"></div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user" id="sidebarUserBtn" title="Mi perfil">
+        <div class="sidebar-avatar" id="sidebarAvatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarName">—</div>
+          <div class="sidebar-user-email" id="sidebarEmail">—</div>
+        </div>
+        <span class="sidebar-user-edit">✎</span>
+      </div>
+      <button class="btn-sidebar-logout" id="btnSidebarLogout">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══ SIDEBAR TOGGLE ══ -->
+  <button class="sidebar-toggle" id="sidebarToggle">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+
+  <!-- ══ USER CORNER ══ -->
+  <div class="user-corner">
+    <div class="user-btn" id="userBtn">
+      <div class="avatar-ring"><span id="avatarInitials">?</span></div>
+      <span class="user-label">
+        <span class="name" id="userNameLabel"></span>
+        <span id="loginLabel">Iniciar sesión</span>
+      </span>
+    </div>
+    <div class="user-dropdown" id="userDropdown">
+      <div class="drop-header">
+        <p>Conectado como</p>
+        <strong id="dropName">—</strong>
+      </div>
+      <button class="drop-item" id="btnProfile">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        Mi perfil
+      </button>
+      <button class="drop-item" id="btnSettings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Configuración
+      </button>
+      <button class="drop-item danger" id="btnLogout">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Cerrar sesión
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ LOGIN MODAL ══ -->
+  <div class="modal-overlay" id="modalLogin">
+    <div class="modal">
+      <button class="modal-close" id="loginClose">×</button>
+      <div class="modal-logo">
+        <svg width="36" height="36" viewBox="0 0 120 120"><g stroke="#00c8f8" stroke-linecap="round" fill="none"><line x1="38" y1="7" x2="82" y2="7" stroke-width="10"/><line x1="90" y1="12" x2="113" y2="52" stroke-width="10"/><line x1="113" y1="68" x2="90" y2="108" stroke-width="10"/><line x1="82" y1="113" x2="38" y2="113" stroke-width="10"/><line x1="30" y1="108" x2="7" y2="68" stroke-width="10"/><line x1="7" y1="52" x2="30" y2="12" stroke-width="10"/><line x1="60" y1="60" x2="60" y2="28" stroke-width="9"/><line x1="60" y1="60" x2="88" y2="44" stroke-width="9"/><line x1="60" y1="60" x2="88" y2="76" stroke-width="9"/><line x1="60" y1="60" x2="60" y2="92" stroke-width="9"/><line x1="60" y1="60" x2="32" y2="76" stroke-width="9"/><line x1="60" y1="60" x2="32" y2="44" stroke-width="9"/></g></svg>
+        <h2>UTECia</h2>
+      </div>
+      <p class="tagline">Acceso al asistente</p>
+      <div class="field">
+        <label>Correo</label>
+        <input type="email" id="inputEmail" placeholder="admin@admin.com">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="inputPassword" placeholder="••••••••">
+      </div>
+      <p class="login-error" id="loginError">Credenciales incorrectas. Intentá de nuevo.</p>
+      <button class="btn-primary" id="btnLogin">Ingresar</button>
+    </div>
+  </div>
+
+  <!-- ══ PROFILE MODAL ══ -->
+  <div class="modal-overlay" id="modalProfile">
+    <div class="modal">
+      <button class="modal-close" id="profileClose">×</button>
+      <div class="modal-logo">
+        <svg width="36" height="36" viewBox="0 0 120 120"><g stroke="#00c8f8" stroke-linecap="round" fill="none"><line x1="38" y1="7" x2="82" y2="7" stroke-width="10"/><line x1="90" y1="12" x2="113" y2="52" stroke-width="10"/><line x1="113" y1="68" x2="90" y2="108" stroke-width="10"/><line x1="82" y1="113" x2="38" y2="113" stroke-width="10"/><line x1="30" y1="108" x2="7" y2="68" stroke-width="10"/><line x1="7" y1="52" x2="30" y2="12" stroke-width="10"/><line x1="60" y1="60" x2="60" y2="28" stroke-width="9"/><line x1="60" y1="60" x2="88" y2="44" stroke-width="9"/><line x1="60" y1="60" x2="88" y2="76" stroke-width="9"/><line x1="60" y1="60" x2="60" y2="92" stroke-width="9"/><line x1="60" y1="60" x2="32" y2="76" stroke-width="9"/><line x1="60" y1="60" x2="32" y2="44" stroke-width="9"/></g></svg>
+        <h2>Mi Perfil</h2>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Nombre</label>
+          <input type="text" id="profileNombre" placeholder="Nombre">
+        </div>
+        <div class="field">
+          <label>Apellido</label>
+          <input type="text" id="profileApellido" placeholder="Apellido">
+        </div>
+      </div>
+      <div class="field">
+        <label>Correo electrónico</label>
+        <input type="email" id="profileEmail" placeholder="correo@utec.edu.uy">
+      </div>
+      <div class="field">
+        <label>Rol</label>
+        <input type="text" id="profileRol" disabled>
+      </div>
+      <p class="profile-saved" id="profileSaved">✓ Cambios guardados correctamente</p>
+      <button class="btn-primary" id="btnSaveProfile">Guardar cambios</button>
+    </div>
+  </div>
+
+  <!-- ══ MAIN PAGE ══ -->
+  <div class="page-wrap" id="pageWrap">
+    <div class="container">
+
+      <div class="title-wrap">
+        <div class="title-row">
+          <svg class="title-svg" width="68" height="68" viewBox="0 0 120 120">
+            <g stroke="#00c8f8" stroke-linecap="round" fill="none">
+              <line x1="38" y1="7"   x2="82"  y2="7"   stroke-width="10"/>
+              <line x1="90" y1="12"  x2="113" y2="52"  stroke-width="10"/>
+              <line x1="113" y1="68" x2="90"  y2="108" stroke-width="10"/>
+              <line x1="82" y1="113" x2="38"  y2="113" stroke-width="10"/>
+              <line x1="30" y1="108" x2="7"   y2="68"  stroke-width="10"/>
+              <line x1="7"  y1="52"  x2="30"  y2="12"  stroke-width="10"/>
+              <line x1="60" y1="60"  x2="60"  y2="28"  stroke-width="9"/>
+              <line x1="60" y1="60"  x2="88"  y2="44"  stroke-width="9"/>
+              <line x1="60" y1="60"  x2="88"  y2="76"  stroke-width="9"/>
+              <line x1="60" y1="60"  x2="60"  y2="92"  stroke-width="9"/>
+              <line x1="60" y1="60"  x2="32"  y2="76"  stroke-width="9"/>
+              <line x1="60" y1="60"  x2="32"  y2="44"  stroke-width="9"/>
+            </g>
+          </svg>
+          <h1>UTECia</h1>
+        </div>
+        <p class="subtitle">Inteligencia Artificial · Universidad Tecnológica</p>
+      </div>
+
+      <div class="chat-box" id="chatBox"></div>
+
+      <div class="input-wrap">
+        <div class="input-row">
+          <textarea id="userInput" placeholder="Escribe tu mensaje…" rows="1"></textarea>
+          <button class="send" id="sendBtn">
+            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <span class="input-hint" id="inputHint">⚠ El mensaje no puede estar vacío.</span>
+      </div>
+
+      <p class="footer">UTECia — Prototipo 2025</p>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', path='js/app.js') }}"></script>
+</body>
+</html>
