@@ -3,6 +3,23 @@
 const canvas = document.getElementById('bg');
 const ctx    = canvas.getContext('2d');
 
+const UTEC_LOGO_SEGMENTS = [
+  [36, 31, 56, 19],
+  [64, 19, 84, 31],
+  [97, 52, 97, 77],
+  [84, 89, 64, 101],
+  [56, 101, 36, 89],
+  [23, 77, 23, 52],
+  [60, 28, 60, 51],
+  [68, 55, 89, 43],
+  [68, 65, 89, 78],
+  [60, 69, 60, 92],
+  [52, 65, 31, 78],
+  [52, 55, 31, 43],
+];
+
+const UTEC_LOGO_DOT = { x: 60, y: 60, r: 6.4 };
+
 function buildLogo(size, alpha) {
   const offscreen  = document.createElement('canvas');
   offscreen.width  = size;
@@ -16,39 +33,18 @@ function buildLogo(size, alpha) {
   c.shadowColor  = '#00c8f8';
   c.shadowBlur   = size * 0.2;
 
-  const outerSegments = [
-    [38, 7,  82,  7],
-    [90, 12, 113, 52],
-    [113, 68, 90, 108],
-    [82, 113, 38, 113],
-    [30, 108,  7,  68],
-    [7,   52, 30,  12],
-  ];
-
-  const innerSpokes = [
-    [60, 60, 60, 28],
-    [60, 60, 88, 44],
-    [60, 60, 88, 76],
-    [60, 60, 60, 92],
-    [60, 60, 32, 76],
-    [60, 60, 32, 44],
-  ];
-
-  c.lineWidth = 10 * s;
-  outerSegments.forEach(([x1, y1, x2, y2]) => {
+  c.lineWidth = 10.5 * s;
+  UTEC_LOGO_SEGMENTS.forEach(([x1, y1, x2, y2]) => {
     c.beginPath();
     c.moveTo(x1 * s, y1 * s);
     c.lineTo(x2 * s, y2 * s);
     c.stroke();
   });
 
-  c.lineWidth = 9 * s;
-  innerSpokes.forEach(([x1, y1, x2, y2]) => {
-    c.beginPath();
-    c.moveTo(x1 * s, y1 * s);
-    c.lineTo(x2 * s, y2 * s);
-    c.stroke();
-  });
+  c.fillStyle = '#00c8f8';
+  c.beginPath();
+  c.arc(UTEC_LOGO_DOT.x * s, UTEC_LOGO_DOT.y * s, UTEC_LOGO_DOT.r * s, 0, Math.PI * 2);
+  c.fill();
 
   return offscreen;
 }
@@ -133,26 +129,14 @@ function drawParticles() {
   }
 }
 
-const LOGO_SEGMENTS = [
-  [38, 7,  82,  7],   // hexágono exterior
-  [90, 12, 113, 52],
-  [113, 68, 90, 108],
-  [82, 113, 38, 113],
-  [30, 108,  7,  68],
-  [7,   52, 30,  12],
-  [60, 60, 60, 28],   // radios internos
-  [60, 60, 88, 44],
-  [60, 60, 88, 76],
-  [60, 60, 60, 92],
-  [60, 60, 32, 76],
-  [60, 60, 32, 44],
-];
+const LOGO_SEGMENTS = UTEC_LOGO_SEGMENTS;
 
 let shards = [];
 
 /** Rompe el logo centrado en (px, py) en fragmentos con física */
 function spawnShatter(px, py, tier) {
   const scale = LOGOS[tier].width / 120;
+  const alpha = tier === 0 ? 0.62 : tier === 1 ? 0.44 : 0.30;
 
   LOGO_SEGMENTS.forEach(([x1, y1, x2, y2]) => {
     const midX  = px + ((x1 + x2) / 2 - 60) * scale;
@@ -175,8 +159,26 @@ function spawnShatter(px, py, tier) {
       decay: 0.016 + Math.random() * 0.012,
       gravity: 0.04 + Math.random() * 0.03,
       strokeW: tier === 0 ? 5 : tier === 1 ? 3.5 : 2.5,
-      alpha:   tier === 0 ? 0.62 : tier === 1 ? 0.44 : 0.30,
+      alpha,
     });
+  });
+
+  const dotAngle = Math.random() * Math.PI * 2;
+  const dotSpeed = 1.2 + Math.random() * 2.2;
+
+  shards.push({
+    kind: 'dot',
+    x:  px,
+    y:  py,
+    vx:    Math.cos(dotAngle) * dotSpeed,
+    vy:    Math.sin(dotAngle) * dotSpeed,
+    rot:   0,
+    rotV:  0,
+    life:  1,
+    decay: 0.018 + Math.random() * 0.012,
+    gravity: 0.04 + Math.random() * 0.03,
+    radius: UTEC_LOGO_DOT.r * scale,
+    alpha,
   });
 }
 
@@ -195,12 +197,22 @@ function drawShards() {
     ctx.save();
     ctx.globalAlpha  = s.life * s.alpha;
     ctx.strokeStyle  = '#00c8f8';
-    ctx.lineWidth    = s.strokeW * s.life;
+    ctx.lineWidth    = (s.strokeW || 0) * s.life;
     ctx.lineCap      = 'round';
     ctx.shadowColor  = '#00c8f8';
-    ctx.shadowBlur   = s.strokeW * 4 * s.life;
+    ctx.shadowBlur   = (s.strokeW || s.radius) * 4 * s.life;
     ctx.translate(s.x, s.y);
     ctx.rotate(s.rot);
+
+    if (s.kind === 'dot') {
+      ctx.fillStyle = '#00c8f8';
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(0.4, s.radius * s.life), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      continue;
+    }
+
     ctx.beginPath();
     ctx.moveTo(s.sx, s.sy);
     ctx.lineTo(s.ex, s.ey);
@@ -553,6 +565,8 @@ userInputEl.addEventListener('input', () => {
 ═══════════════════════════════════════════ */
 
 /** Base de usuarios (demo). En producción esto sería una API. */
+const FEDERATED_LOGIN_PATH = '/login';
+
 const VALID_USERS = [
   {
     email:    'admin@admin.com',
@@ -619,8 +633,12 @@ function doLogout() {
 /* ── Login ── */
 userBtnEl.addEventListener('click', (e) => {
   e.stopPropagation();
-  if (!currentUser) openLoginModal();
-  else userDropdownEl.classList.toggle('open');
+  if (!currentUser) {
+    window.location.assign(FEDERATED_LOGIN_PATH);
+    return;
+  }
+
+  userDropdownEl.classList.toggle('open');
 });
 
 document.addEventListener('click', () => userDropdownEl.classList.remove('open'));

@@ -52,6 +52,19 @@ body {
     opacity: 0.32; /* partículas suaves sobre fondo claro */
 }
 
+.svg-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.utec-mark {
+    display: block;
+    color: var(--cyan);
+    overflow: visible;
+}
+
 body::after {
     content: '';
     position: fixed;
@@ -731,7 +744,7 @@ body::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 18px;
+    gap: clamp(10px, 3vw, 18px);
 }
 
 h1 {
@@ -762,19 +775,18 @@ h1 {
     }
 }
 
+.title-logo,
 .title-svg {
     filter: drop-shadow(0 2px 8px rgba(0, 184, 224, 0.5)) drop-shadow(0 0 18px rgba(0, 184, 224, 0.2));
-    animation: titleFloat 4s ease-in-out infinite, spinSlow 18s linear infinite;
+    animation: titleFloat 4s ease-in-out infinite;
     flex-shrink: 0;
 }
 
-@keyframes spinSlow {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.title-logo {
+    display: block;
+    width: clamp(42px, 12vw, 76px);
+    height: clamp(42px, 12vw, 76px);
+    object-fit: contain;
 }
 
 /* ── 8. Chat ── */
