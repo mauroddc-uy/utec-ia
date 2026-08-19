@@ -35,6 +35,7 @@ class Settings:
     bedrock_max_tokens: int
     bedrock_temperature: float
     bedrock_system_prompt: str
+    database_url: str | None
 
 
 @lru_cache
@@ -49,4 +50,5 @@ def get_settings() -> Settings:
             "BEDROCK_SYSTEM_PROMPT",
             "Responde en espanol, con tono claro y util, como asistente de UTECia.",
         ),
+        database_url=os.getenv("DATABASE_URL") or None,
     )

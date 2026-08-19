@@ -11,6 +11,11 @@ from app.services.bedrock import (
     BedrockInvocationError,
     generate_bedrock_response,
 )
+from app.services.database import (
+    DatabaseConfigurationError,
+    DatabaseConnectionError,
+    check_database_connection,
+)
 
 app = FastAPI()
 
@@ -56,6 +61,27 @@ async def bedrock_config():
         "model_id": settings.bedrock_model_id,
         "max_tokens": settings.bedrock_max_tokens,
         "temperature": settings.bedrock_temperature,
+    }
+
+
+@app.get("/health")
+async def health():
+    try:
+        database = await run_in_threadpool(check_database_connection)
+    except DatabaseConfigurationError as exc:
+        database = {
+            "status": "not_configured",
+            "detail": str(exc),
+        }
+    except DatabaseConnectionError as exc:
+        database = {
+            "status": "error",
+            "detail": str(exc),
+        }
+
+    return {
+        "status": "ok" if database["status"] in {"ok", "not_configured"} else "degraded",
+        "database": database,
     }
 
 
