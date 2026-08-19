@@ -3,3 +3,4 @@ jinja2
 python-dotenv
 boto3
 uvicorn
+psycopg[binary]

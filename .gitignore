@@ -14,7 +14,7 @@ __pycache__/
 .env
 
 # Docker Compose local
-docker-compose.yml
+docker-compose.override.yml
 
 # Logs
 *.log
