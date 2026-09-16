@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UTECia</title>
+  <link rel="icon" href="data:,">
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200;400;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}?v=2">
 </head>
 <body>
 
@@ -78,8 +79,8 @@
       </div>
       <p class="tagline">Acceso al asistente</p>
       <div class="field">
-        <label>Correo</label>
-        <input type="email" id="inputEmail" placeholder="admin@admin.com">
+        <label>Usuario o correo</label>
+        <input type="text" id="inputEmail" placeholder="admin">
       </div>
       <div class="field">
         <label>Contraseña</label>
@@ -115,6 +116,19 @@
       <div class="field">
         <label>Rol</label>
         <input type="text" id="profileRol" disabled>
+      </div>
+      <div class="field color-field">
+        <label>Color de la web</label>
+        <div class="color-control">
+          <input type="color" id="profileColor" value="#00b8e0">
+          <div class="color-swatches" id="profileColorSwatches">
+            <button type="button" data-profile-color="#00b8e0" style="--swatch:#00b8e0" aria-label="Cian"></button>
+            <button type="button" data-profile-color="#7c3aed" style="--swatch:#7c3aed" aria-label="Violeta"></button>
+            <button type="button" data-profile-color="#16a34a" style="--swatch:#16a34a" aria-label="Verde"></button>
+            <button type="button" data-profile-color="#dc2626" style="--swatch:#dc2626" aria-label="Rojo"></button>
+            <button type="button" data-profile-color="#ea580c" style="--swatch:#ea580c" aria-label="Naranja"></button>
+          </div>
+        </div>
       </div>
       <p class="profile-saved" id="profileSaved">✓ Cambios guardados correctamente</p>
       <button class="btn-primary" id="btnSaveProfile">Guardar cambios</button>
@@ -164,6 +178,6 @@
     </div>
   </div>
 
-  <script src="{{ url_for('static', path='js/app.js') }}"></script>
+  <script src="{{ url_for('static', path='js/app.js') }}?v=3"></script>
 </body>
 </html>

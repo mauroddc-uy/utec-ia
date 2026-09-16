@@ -2,8 +2,9 @@
 
 const canvas = document.getElementById('bg');
 const ctx    = canvas.getContext('2d');
+let canvasAccentColor = '#00c8f8';
 
-function buildLogo(size, alpha) {
+function buildLogo(size, alpha, color = canvasAccentColor) {
   const offscreen  = document.createElement('canvas');
   offscreen.width  = size;
   offscreen.height = size;
@@ -11,9 +12,9 @@ function buildLogo(size, alpha) {
   const s = size / 120;
 
   c.globalAlpha  = alpha;
-  c.strokeStyle  = '#00c8f8';
+  c.strokeStyle  = color;
   c.lineCap      = 'round';
-  c.shadowColor  = '#00c8f8';
+  c.shadowColor  = color;
   c.shadowBlur   = size * 0.2;
 
   const outerSegments = [
@@ -53,11 +54,20 @@ function buildLogo(size, alpha) {
   return offscreen;
 }
 
-const LOGOS = [
+let LOGOS = [
   buildLogo(56, 0.62),
   buildLogo(36, 0.44),
   buildLogo(22, 0.30),
 ];
+
+function setCanvasAccentColor(color) {
+  canvasAccentColor = color;
+  LOGOS = [
+    buildLogo(56, 0.62, color),
+    buildLogo(36, 0.44, color),
+    buildLogo(22, 0.30, color),
+  ];
+}
 
 function resizeCanvas() {
   canvas.width  = window.innerWidth;
@@ -176,6 +186,7 @@ function spawnShatter(px, py, tier) {
       gravity: 0.04 + Math.random() * 0.03,
       strokeW: tier === 0 ? 5 : tier === 1 ? 3.5 : 2.5,
       alpha:   tier === 0 ? 0.62 : tier === 1 ? 0.44 : 0.30,
+      color:   canvasAccentColor,
     });
   });
 }
@@ -194,10 +205,10 @@ function drawShards() {
 
     ctx.save();
     ctx.globalAlpha  = s.life * s.alpha;
-    ctx.strokeStyle  = '#00c8f8';
+    ctx.strokeStyle  = s.color;
     ctx.lineWidth    = s.strokeW * s.life;
     ctx.lineCap      = 'round';
-    ctx.shadowColor  = '#00c8f8';
+    ctx.shadowColor  = s.color;
     ctx.shadowBlur   = s.strokeW * 4 * s.life;
     ctx.translate(s.x, s.y);
     ctx.rotate(s.rot);
@@ -442,15 +453,6 @@ const userInputEl = document.getElementById('userInput');
 const sendBtnEl   = document.getElementById('sendBtn');
 const inputHintEl = document.getElementById('inputHint');
 
-const AI_REPLIES = [
-  '¡Excelente pregunta! Estoy procesando tu consulta…',
-  'Con gusto te ayudo. Déjame analizar eso para darte la mejor respuesta.',
-  'Entendido. Basándome en la información disponible, puedo orientarte.',
-  'Esa es una pregunta muy interesante desde el punto de vista tecnológico.',
-  'Recibido. Trabajando en tu solicitud ahora mismo.',
-  'Como asistente de UTEC, mi objetivo es apoyarte en cada paso de tu aprendizaje.',
-];
-
 function getInitials(name) {
   return name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
 }
@@ -523,12 +525,15 @@ async function sendMessage() {
     }
 
     const data = await response.json();
+    if (!data.answer) {
+      throw new Error('La respuesta del servidor no incluyo answer');
+    }
+
     removeTypingIndicator();
-    renderMessage('ai', data.answer || 'No pude generar una respuesta.');
+    renderMessage('ai', data.answer);
   } catch (error) {
     removeTypingIndicator();
-    const fallback = AI_REPLIES[Math.floor(Math.random() * AI_REPLIES.length)];
-    renderMessage('error', 'No pude conectarme con el backend. Respuesta local: ' + fallback, false);
+    renderMessage('error', 'No fue posible comunicarse con el backend.', false);
     console.error(error);
   }
 }
@@ -555,12 +560,23 @@ userInputEl.addEventListener('input', () => {
 /** Base de usuarios (demo). En producción esto sería una API. */
 const VALID_USERS = [
   {
+    username: 'admin',
     email:    'admin@admin.com',
     password: 'admin',
     name:     'Admin',
     nombre:   'Admin',
     apellido: '',
     rol:      'Administrador',
+  },
+  {
+    username: 'test@test.com',
+    aliases:  ['test'],
+    email:    'test@test.com',
+    password: 'test',
+    name:     'Test',
+    nombre:   'Test',
+    apellido: '',
+    rol:      'Usuario',
   },
 ];
 
@@ -569,6 +585,117 @@ let currentUser = null;
 // Referencias DOM
 const userBtnEl       = document.getElementById('userBtn');
 const userDropdownEl  = document.getElementById('userDropdown');
+const DEFAULT_THEME_COLOR = '#00b8e0';
+const USER_STORAGE_PREFIX = 'utecia:user:';
+
+function normalizeHexColor(value) {
+  const color = String(value || '').trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : null;
+}
+
+function hexToRgb(hex) {
+  const color = normalizeHexColor(hex) || DEFAULT_THEME_COLOR;
+  const value = parseInt(color.slice(1), 16);
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  return '#' + [r, g, b]
+    .map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function mixColor(baseHex, targetHex, targetWeight) {
+  const base = hexToRgb(baseHex);
+  const target = hexToRgb(targetHex);
+  const baseWeight = 1 - targetWeight;
+
+  return rgbToHex({
+    r: Math.round(base.r * baseWeight + target.r * targetWeight),
+    g: Math.round(base.g * baseWeight + target.g * targetWeight),
+    b: Math.round(base.b * baseWeight + target.b * targetWeight),
+  });
+}
+
+function rgbaColor(hex, alpha) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function updateActiveColorSwatches(color) {
+  document.querySelectorAll('[data-profile-color]').forEach(button => {
+    button.classList.toggle('active', button.dataset.profileColor.toLowerCase() === color);
+  });
+}
+
+function applyThemeColor(value) {
+  const color = normalizeHexColor(value) || DEFAULT_THEME_COLOR;
+  const root = document.documentElement;
+
+  setCanvasAccentColor(color);
+  root.style.setProperty('--cyan', color);
+  root.style.setProperty('--cyan-mid', mixColor(color, '#ffffff', 0.28));
+  root.style.setProperty('--cyan-light', rgbaColor(color, 0.18));
+  root.style.setProperty('--cyan-border', rgbaColor(color, 0.45));
+  root.style.setProperty('--accent-dark', mixColor(color, '#00384f', 0.32));
+  root.style.setProperty('--accent-shadow', rgbaColor(color, 0.3));
+  root.style.setProperty('--accent-shadow-strong', rgbaColor(color, 0.45));
+  root.style.setProperty('--bg-grad-top', mixColor(color, '#ffffff', 0.9));
+  root.style.setProperty('--bg-base', mixColor(color, '#ffffff', 0.84));
+  root.style.setProperty('--bg-grad-bot', mixColor(color, '#ffffff', 0.76));
+  updateActiveColorSwatches(color);
+}
+
+function getUserStorageKey(user) {
+  const userId = user && (user.username || user.email);
+  return userId ? `${USER_STORAGE_PREFIX}${userId}` : null;
+}
+
+function loadUserSettings(user) {
+  const key = getUserStorageKey(user);
+  if (!key) return {};
+
+  try {
+    return JSON.parse(localStorage.getItem(key)) || {};
+  } catch (error) {
+    console.error('No se pudo leer la configuración del usuario.', error);
+    return {};
+  }
+}
+
+function saveUserSettings(user) {
+  const key = getUserStorageKey(user);
+  if (!key) return;
+
+  const settings = {
+    nombre: user.nombre,
+    apellido: user.apellido,
+    email: user.email,
+    color: normalizeHexColor(user.color) || DEFAULT_THEME_COLOR,
+  };
+
+  try {
+    localStorage.setItem(key, JSON.stringify(settings));
+  } catch (error) {
+    console.error('No se pudo guardar la configuración del usuario.', error);
+  }
+}
+
+function hydrateUser(baseUser) {
+  const settings = loadUserSettings(baseUser);
+  return {
+    ...baseUser,
+    ...settings,
+    username: baseUser.username,
+    password: baseUser.password,
+    rol: baseUser.rol,
+    color: normalizeHexColor(settings.color) || baseUser.color || DEFAULT_THEME_COLOR,
+  };
+}
 
 /** Actualiza la barra superior y la sidebar según el estado de sesión */
 function updateUIForUser() {
@@ -611,6 +738,7 @@ function doLogout() {
   currentUser  = null;
   chatStore    = [];
   activeChatId = null;
+  applyThemeColor(DEFAULT_THEME_COLOR);
   updateUIForUser();
   startFreshChat();
   renderMessage('ai', 'Sesión cerrada. ¡Hasta pronto! 👋', false);
@@ -641,9 +769,12 @@ document.getElementById('modalLogin').addEventListener('click', (e) => {
 });
 
 document.getElementById('btnLogin').addEventListener('click', () => {
-  const email    = document.getElementById('inputEmail').value.trim().toLowerCase();
+  const username = document.getElementById('inputEmail').value.trim().toLowerCase();
   const password = document.getElementById('inputPassword').value;
-  const found    = VALID_USERS.find(u => u.email === email && u.password === password);
+  const found    = VALID_USERS.find(u => (
+    ([u.username, u.email, ...(u.aliases || [])].some(value => value.toLowerCase() === username)) &&
+    u.password === password
+  ));
 
   if (!found) {
     document.getElementById('loginError').style.display = 'block';
@@ -651,7 +782,8 @@ document.getElementById('btnLogin').addEventListener('click', () => {
     return;
   }
 
-  currentUser = { ...found };
+  currentUser = hydrateUser({ ...found });
+  applyThemeColor(currentUser.color);
   updateUIForUser();
   closeLoginModal();
   startFreshChat();
@@ -673,6 +805,8 @@ function openProfileModal() {
   document.getElementById('profileApellido').value = currentUser.apellido || '';
   document.getElementById('profileEmail').value    = currentUser.email    || '';
   document.getElementById('profileRol').value      = currentUser.rol      || 'Usuario';
+  document.getElementById('profileColor').value    = normalizeHexColor(currentUser.color) || DEFAULT_THEME_COLOR;
+  updateActiveColorSwatches(document.getElementById('profileColor').value);
   document.getElementById('profileSaved').style.display = 'none';
   document.getElementById('modalProfile').classList.add('open');
   userDropdownEl.classList.remove('open');
@@ -694,6 +828,7 @@ document.getElementById('btnSaveProfile').addEventListener('click', () => {
   const nombre   = document.getElementById('profileNombre').value.trim();
   const apellido = document.getElementById('profileApellido').value.trim();
   const email    = document.getElementById('profileEmail').value.trim();
+  const color    = normalizeHexColor(document.getElementById('profileColor').value) || DEFAULT_THEME_COLOR;
 
   if (!nombre) {
     document.getElementById('profileNombre').focus();
@@ -704,12 +839,36 @@ document.getElementById('btnSaveProfile').addEventListener('click', () => {
   currentUser.apellido = apellido;
   currentUser.email    = email;
   currentUser.name     = `${nombre} ${apellido}`.trim();
+  currentUser.color    = color;
 
+  applyThemeColor(color);
+  saveUserSettings(currentUser);
   updateUIForUser();
 
   const savedMsg = document.getElementById('profileSaved');
   savedMsg.style.display = 'block';
   setTimeout(() => { savedMsg.style.display = 'none'; }, 2500);
+});
+
+function setProfileColor(colorValue) {
+  const color = normalizeHexColor(colorValue) || DEFAULT_THEME_COLOR;
+  document.getElementById('profileColor').value = color;
+  if (currentUser) currentUser.color = color;
+  applyThemeColor(color);
+}
+
+document.getElementById('profileColor').addEventListener('input', (e) => {
+  setProfileColor(e.target.value);
+});
+
+document.getElementById('profileColor').addEventListener('change', (e) => {
+  setProfileColor(e.target.value);
+});
+
+document.querySelectorAll('[data-profile-color]').forEach(button => {
+  button.addEventListener('click', () => {
+    setProfileColor(button.dataset.profileColor);
+  });
 });
 
 document.getElementById('btnSettings').addEventListener('click', () => {
@@ -718,6 +877,7 @@ document.getElementById('btnSettings').addEventListener('click', () => {
 });
 
 /* ── Init ── */
+applyThemeColor(DEFAULT_THEME_COLOR);
 renderMessage(
   'ai',
   '¡Hola! Soy UTECia, tu asistente de inteligencia artificial. Iniciá sesión para guardar tus conversaciones.',

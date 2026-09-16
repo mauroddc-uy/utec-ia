@@ -1,11 +1,22 @@
-# Test your FastAPI endpoints
+# UTEC IA - Preview
 
 GET http://127.0.0.1:8000/
+Accept: text/html
+
+###
+
+GET http://127.0.0.1:8000/health
 Accept: application/json
 
 ###
 
-GET http://127.0.0.1:8000/hello/User
+POST http://127.0.0.1:8000/api/chat
+Content-Type: application/json
 Accept: application/json
+
+{
+  "message": "¿Cuántos créditos necesito para finalizar la carrera?",
+  "user_email": null
+}
 
 ###

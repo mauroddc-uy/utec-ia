@@ -10,6 +10,9 @@
     --cyan-mid: #29d4f5;
     --cyan-light: rgba(0, 184, 224, 0.18);
     --cyan-border: rgba(0, 184, 224, 0.45);
+    --accent-dark: #0090c0;
+    --accent-shadow: rgba(0, 184, 224, 0.3);
+    --accent-shadow-strong: rgba(0, 184, 224, 0.45);
 
     /* Fondo general — blanco azulado muy suave */
     --bg-grad-top: #e8f6fc;
@@ -248,7 +251,7 @@ body::after {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #0090c0, #29d4f5);
+    background: linear-gradient(135deg, var(--accent-dark), var(--cyan-mid));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -392,7 +395,7 @@ body::after {
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #0090c0, #29d4f5);
+    background: linear-gradient(135deg, var(--accent-dark), var(--cyan-mid));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -587,7 +590,12 @@ body::after {
 }
 
 .modal-logo svg {
-    filter: drop-shadow(0 2px 6px rgba(0, 184, 224, 0.35));
+    filter: drop-shadow(0 2px 6px var(--accent-shadow));
+}
+
+.modal-logo svg g,
+.title-svg g {
+    stroke: var(--cyan);
 }
 
 .modal-logo h2 {
@@ -634,7 +642,7 @@ body::after {
 
 .field input:focus {
     border-color: var(--cyan);
-    box-shadow: 0 0 0 3px rgba(0, 184, 224, 0.12), inset 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 0 0 3px var(--cyan-light), inset 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .field input::placeholder {
@@ -642,9 +650,9 @@ body::after {
 }
 
 .field input:disabled {
-    background: rgba(0, 184, 224, 0.06);
+    background: var(--cyan-light);
     color: var(--text-light);
-    border-color: rgba(0, 184, 224, 0.15);
+    border-color: var(--cyan-border);
     cursor: not-allowed;
 }
 
@@ -655,6 +663,42 @@ body::after {
 
 .field-row .field {
     flex: 1;
+}
+
+.color-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.field input[type="color"] {
+    width: 54px;
+    height: 42px;
+    padding: 4px;
+    cursor: pointer;
+}
+
+.color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.color-swatches button {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    background: var(--swatch);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.color-swatches button:hover,
+.color-swatches button.active {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0 3px var(--cyan-light), 0 3px 12px rgba(0, 0, 0, 0.16);
 }
 
 .login-error {
@@ -672,7 +716,7 @@ body::after {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #0090c0, #29d4f5);
+    background: linear-gradient(135deg, var(--accent-dark), var(--cyan-mid));
     border: none;
     border-radius: 11px;
     color: #fff;
@@ -681,13 +725,13 @@ body::after {
     font-weight: 700;
     padding: 13px;
     cursor: pointer;
-    box-shadow: 0 4px 18px rgba(0, 184, 224, 0.3);
+    box-shadow: 0 4px 18px var(--accent-shadow);
     transition: box-shadow 0.2s, transform 0.15s;
     letter-spacing: 0.06em;
 }
 
 .btn-primary:hover {
-    box-shadow: 0 6px 28px rgba(0, 184, 224, 0.45);
+    box-shadow: 0 6px 28px var(--accent-shadow-strong);
     transform: translateY(-1px);
 }
 
@@ -763,7 +807,7 @@ h1 {
 }
 
 .title-svg {
-    filter: drop-shadow(0 2px 8px rgba(0, 184, 224, 0.5)) drop-shadow(0 0 18px rgba(0, 184, 224, 0.2));
+    filter: drop-shadow(0 2px 8px var(--accent-shadow-strong)) drop-shadow(0 0 18px var(--accent-shadow));
     animation: titleFloat 4s ease-in-out infinite, spinSlow 18s linear infinite;
     flex-shrink: 0;
 }
@@ -848,11 +892,11 @@ h1 {
 
 /* User bubble — cyan gradient (referencia) */
 .msg.user .bubble {
-    background: linear-gradient(135deg, #0099cc, #29d4f5);
+    background: linear-gradient(135deg, var(--accent-dark), var(--cyan-mid));
     border: none;
     color: #fff;
     border-bottom-right-radius: 4px;
-    box-shadow: 0 3px 12px rgba(0, 184, 224, 0.28);
+    box-shadow: 0 3px 12px var(--accent-shadow);
 }
 
 .msg.error .bubble {
@@ -878,9 +922,9 @@ h1 {
 
 .msg.ai .av,
 .msg.error .av {
-    background: linear-gradient(135deg, #0090c0, #29d4f5);
+    background: linear-gradient(135deg, var(--accent-dark), var(--cyan-mid));
     color: #fff;
-    box-shadow: 0 2px 8px rgba(0, 184, 224, 0.3);
+    box-shadow: 0 2px 8px var(--accent-shadow);
 }
 
 .msg.user .av {
@@ -963,7 +1007,7 @@ textarea::placeholder {
 
 textarea:focus {
     border-color: var(--cyan);
-    box-shadow: 0 0 0 3px rgba(0, 184, 224, 0.14), inset 0 1px 4px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 0 0 3px var(--cyan-light), inset 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 textarea.input-error {
@@ -987,19 +1031,19 @@ button.send {
     height: 52px;
     border-radius: 14px;
     border: none;
-    background: linear-gradient(135deg, #0090c0, #29d4f5);
+    background: linear-gradient(135deg, var(--accent-dark), var(--cyan-mid));
     color: #fff;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    box-shadow: 0 4px 16px rgba(0, 184, 224, 0.3);
+    box-shadow: 0 4px 16px var(--accent-shadow);
     flex-shrink: 0;
 }
 
 button.send:hover {
-    box-shadow: 0 6px 24px rgba(0, 184, 224, 0.45);
+    box-shadow: 0 6px 24px var(--accent-shadow-strong);
     transform: translateY(-1px);
 }
 

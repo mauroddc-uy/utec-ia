@@ -1,90 +1,91 @@
-def runCommand(String unixCommand, String windowsCommand) {
-    if (isUnix()) {
-        sh unixCommand
-    } else {
-        powershell windowsCommand
-    }
-}
-
 pipeline {
     agent any
 
-    options {
-        timestamps()
-        disableConcurrentBuilds()
-    }
-
     environment {
         IMAGE_NAME = 'utec-ia'
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        CONTAINER_NAME = "utec-ia-ci-${BUILD_NUMBER}"
+        CONTAINER_NAME = 'utec-ia-container'
+
+        VM_IP = '192.168.193.183'
+        VM_USER = 'matias'
+        SSH_CREDS = 'ssh vm'
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Descargar código') {
             steps {
-                checkout scm
+                git branch: 'main',
+                    url: 'https://github.com/mauroddc-uy/utec-ia.git'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Construir Imagen Docker') {
             steps {
                 script {
-                    runCommand(
-                        'docker build -t "$IMAGE_NAME:$IMAGE_TAG" .',
-                        'docker build -t "$($env:IMAGE_NAME):$($env:IMAGE_TAG)" .'
-                    )
+                    docker.build("${IMAGE_NAME}:latest")
                 }
             }
         }
 
-        stage('Validate App') {
+        stage('Empaquetar Imagen') {
             steps {
-                script {
-                    runCommand(
-                        'docker run --rm "$IMAGE_NAME:$IMAGE_TAG" python -m compileall app',
-                        'docker run --rm "$($env:IMAGE_NAME):$($env:IMAGE_TAG)" python -m compileall app'
+                echo 'Convirtiendo imagen a archivo .tar para enviarla...'
+                sh "docker save ${IMAGE_NAME}:latest -o ${IMAGE_NAME}.tar"
+            }
+        }
+
+        stage('Enviar a VM de VMware') {
+            steps {
+                echo 'Enviando archivo por SSH a la VM...'
+
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: "${SSH_CREDS}",
+                        keyFileVariable: 'SSH_KEY'
                     )
+                ]) {
+                    sh '''
+                        scp -i $SSH_KEY \
+                        -o StrictHostKeyChecking=no \
+                        ${IMAGE_NAME}.tar \
+                        ${VM_USER}@${VM_IP}:/tmp/${IMAGE_NAME}.tar
+                    '''
                 }
             }
         }
 
-        stage('Smoke Test') {
+        stage('Desplegar en VM de VMware') {
             steps {
-                script {
-                    runCommand(
-                        '''
-                        docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
-                        docker run -d --name "$CONTAINER_NAME" "$IMAGE_NAME:$IMAGE_TAG"
+                echo 'Levantando el contenedor en la VM remota...'
 
-                        for i in $(seq 1 30); do
-                            if docker exec "$CONTAINER_NAME" python -c "import urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2); assert response.status == 200" >/dev/null 2>&1; then
-                                docker exec "$CONTAINER_NAME" python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read().decode())"
-                                exit 0
-                            fi
-                            sleep 1
-                        done
-
-                        docker logs "$CONTAINER_NAME"
-                        exit 1
-                        ''',
-                        '''
-                        docker rm -f $env:CONTAINER_NAME 2>$null | Out-Null
-                        docker run -d --name $env:CONTAINER_NAME "$($env:IMAGE_NAME):$($env:IMAGE_TAG)"
-
-                        for ($i = 1; $i -le 30; $i++) {
-                            docker exec $env:CONTAINER_NAME python -c "import urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2); assert response.status == 200" >$null 2>$null
-                            if ($LASTEXITCODE -eq 0) {
-                                docker exec $env:CONTAINER_NAME python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read().decode())"
-                                exit 0
-                            }
-                            Start-Sleep -Seconds 1
-                        }
-
-                        docker logs $env:CONTAINER_NAME
-                        exit 1
-                        '''
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: "${SSH_CREDS}",
+                        keyFileVariable: 'SSH_KEY'
                     )
+                ]) {
+                    sh """
+                        ssh -i \$SSH_KEY \
+                        -o StrictHostKeyChecking=no \
+                        ${VM_USER}@${VM_IP} '
+
+                            echo "Deteniendo contenedor anterior..."
+                            docker stop ${CONTAINER_NAME} || true
+                            docker rm ${CONTAINER_NAME} || true
+
+                            echo "Cargando nueva imagen..."
+                            docker load -i /tmp/${IMAGE_NAME}.tar
+
+                            echo "Levantando nuevo contenedor..."
+                            docker run -d \
+                                -p 80:8000 \
+                                --name ${CONTAINER_NAME} \
+                                ${IMAGE_NAME}:latest
+
+                            echo "Limpiando archivo temporal..."
+                            rm /tmp/${IMAGE_NAME}.tar
+                        '
+                    """
                 }
             }
         }
@@ -92,20 +93,16 @@ pipeline {
 
     post {
         always {
-            script {
-                runCommand(
-                    'docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true',
-                    'docker rm -f $env:CONTAINER_NAME 2>$null | Out-Null'
-                )
-            }
+            echo 'Limpiando archivos temporales en Jenkins...'
+            sh "rm -f ${IMAGE_NAME}.tar"
         }
 
         success {
-            echo 'Pipeline finalizado correctamente.'
+            echo "¡Despliegue exitoso en la VM ${VM_IP}!"
         }
 
         failure {
-            echo 'Pipeline fallido. Revisar logs del build o del smoke test.'
+            echo 'El despliegue falló. Revisa los logs.'
         }
     }
 }
