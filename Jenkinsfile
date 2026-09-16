@@ -14,9 +14,10 @@ pipeline {
 
         stage('Descargar código') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/mauroddc-uy/utec-ia.git'
-            }
+                 git branch: 'main',
+            credentialsId: 'github-token',
+            url: 'https://github.com/mauroddc-uy/utec-ia.git'
+    }
         }
 
         stage('Construir Imagen Docker') {
