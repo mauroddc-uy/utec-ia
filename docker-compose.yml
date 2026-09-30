@@ -1,38 +1,16 @@
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: utec-ia-app
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-utec_user}:${POSTGRES_PASSWORD:-utec_pass}@db:5432/${POSTGRES_DB:-utec_ia}
-    ports:
-      - "${APP_PORT:-8000}:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-
   db:
     image: pgvector/pgvector:pg16
-    container_name: utec-ia-db
+    container_name: nombreContainer
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-utec_ia}
-      POSTGRES_USER: ${POSTGRES_USER:-utec_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-utec_pass}
+      POSTGRES_DB: nombreBase
+      POSTGRES_USER: User
+      POSTGRES_PASSWORD: Pass
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres_data:

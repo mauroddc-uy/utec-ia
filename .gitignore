@@ -1,10 +1,12 @@
 # Entorno virtual
 .venv/
+venv/
 
 # Python
 __pycache__/
 *.py[cod]
 *.pyo
+.pytest_cache/
 
 # PyCharm
 .idea/
@@ -14,7 +16,7 @@ __pycache__/
 .env
 
 # Docker Compose local
-docker-compose.override.yml
+docker-compose.yml
 
 # Logs
 *.log
