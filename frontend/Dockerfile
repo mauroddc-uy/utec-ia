@@ -1,5 +1,7 @@
 FROM nginx:alpine
 
+RUN apk update && apk upgrade --no-cache
+
 LABEL authors="nextlayer"
 
 COPY . /usr/share/nginx/html
