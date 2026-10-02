@@ -157,4 +157,18 @@ jobs:
         run: docker compose up -d --build
 
       - name: Verify deployment
-        run: curl --fail http://localhost/health
+        run: |
+          for i in {1..12}; do
+            if curl --fail http://localhost/health; then
+              echo "Deployment healthy"
+              exit 0
+            fi
+
+            echo "Application not ready yet. Retrying..."
+            sleep 5
+          done
+
+          echo "Deployment health check failed"
+          docker compose ps
+          docker compose logs
+          exit 1
