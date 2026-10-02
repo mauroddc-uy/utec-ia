@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.routes import router as api_router
 
@@ -8,6 +9,7 @@ app = FastAPI(
     description="API backend minima para la demo DevOps de UTEC_IA.",
     version="0.1.0",
 )
+Instrumentator().instrument(app).expose(app)
 
 # CORS amplio solo para desarrollo local. Se restringira cuando existan dominios reales.
 app.add_middleware(

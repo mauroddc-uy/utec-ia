@@ -136,3 +136,25 @@ jobs:
       - name: Stop application
         if: always()
         run: docker compose down
+
+  deploy:
+    name: Deploy to Test VM
+
+    needs:
+      - backend-quality
+      - frontend-quality
+      - docker-integration
+
+    if: github.ref == 'refs/heads/test'
+
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy application
+        run: docker compose up -d --build
+
+      - name: Verify deployment
+        run: curl --fail http://localhost/health
