@@ -1,16 +1,19 @@
 services:
-  db:
-    image: pgvector/pgvector:pg16
-    container_name: nombreContainer
-    restart: always
-    environment:
-      POSTGRES_DB: nombreBase
-      POSTGRES_USER: User
-      POSTGRES_PASSWORD: Pass
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
 
-volumes:
-  postgres_data:
+  backend:
+    build:
+      context: ./backend
+    container_name: utec-ia-backend
+    restart: unless-stopped
+    expose:
+      - "8000"   #exponemos el puerto dentro de docker pero no fuera
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: utec-ia-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"   #aca si exponemos el front al puerto 80 externo
+    depends_on:
+      - backend

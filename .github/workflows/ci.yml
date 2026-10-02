@@ -1,0 +1,72 @@
+name: UTEC_IA CI
+
+on:
+  push:
+    branches:
+      - "dev/**"
+      - development
+      - test
+      - main
+
+  pull_request:
+    branches:
+      - development
+      - test
+      - main
+
+jobs:
+
+  backend-quality:
+    name: Backend - Tests and Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run Pytest
+        working-directory: backend
+        run: python -m pytest
+
+      - name: Run Pylint
+        working-directory: backend
+        run: pylint app tests
+
+      - name: Audit Python dependencies
+        working-directory: backend
+        run: pip-audit -r requirements.txt
+
+
+  frontend-quality:
+    name: Frontend - Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: frontend
+        run: npm run lint

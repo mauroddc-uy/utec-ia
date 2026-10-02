@@ -11,12 +11,12 @@ __pycache__/
 # PyCharm
 .idea/
 
+# Node
+node_modules/
 
 # Variables de entorno
 .env
 
-# Docker Compose local
-docker-compose.yml
 
 # Logs
 *.log
