@@ -111,7 +111,7 @@
               }
             ]
           },
-          "unit": "reqps"
+          "unit": "short"
         }
       },
       "gridPos": {
@@ -146,7 +146,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_requests_total{status=~\"4xx|5xx\"}[5m])) or vector(0)",
+          "expr": "sum(http_requests_total{status=~\"4xx|5xx\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
