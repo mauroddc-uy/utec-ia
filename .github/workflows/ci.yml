@@ -71,65 +71,66 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+
   docker-integration:
-          name: Docker - Build, Security and Smoke Test
-          runs-on: ubuntu-latest
+    name: Docker - Build, Security and Smoke Test
+    runs-on: ubuntu-latest
 
-          needs:
-            - backend-quality
-            - frontend-quality
+    needs:
+      - backend-quality
+      - frontend-quality
 
-          steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Build Docker images
-              run: docker compose build
+      - name: Build Docker images
+        run: docker compose build
 
-            - name: Scan backend image with Trivy
-              uses: aquasecurity/trivy-action@master
-              with:
-                image-ref: 'utec-ia-backend:latest'
-                format: 'table'
-                exit-code: '1'
-                severity: 'CRITICAL,HIGH'
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'utec-ia-backend:latest'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
 
-            - name: Scan frontend image with Trivy
-              uses: aquasecurity/trivy-action@master
-              with:
-                image-ref: 'utec-ia-frontend:latest'
-                format: 'table'
-                exit-code: '1'
-                severity: 'CRITICAL,HIGH'
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'utec-ia-frontend:latest'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
 
-            - name: Start application
-              run: docker compose up -d
+      - name: Start application
+        run: docker compose up -d
 
-            - name: Wait for application
-              run: sleep 10
+      - name: Wait for application
+        run: sleep 10
 
-            - name: Backend health check
-              run: curl --fail http://localhost/health
+      - name: Backend health check
+        run: curl --fail http://localhost/health
 
-            - name: Frontend smoke test
-              run: curl --fail http://localhost/
+      - name: Frontend smoke test
+        run: curl --fail http://localhost/
 
-            - name: Chat API smoke test
-              run: |
-                curl --fail \
-                  -X POST \
-                  -H "Content-Type: application/json" \
-                  -d '{"message":"cuantos creditos tengo"}' \
-                  http://localhost/api/chat
+      - name: Chat API smoke test
+        run: |
+          curl --fail \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"message":"cuantos creditos tengo"}' \
+            http://localhost/api/chat
 
-            - name: Show container status
-              if: always()
-              run: docker compose ps
+      - name: Show container status
+        if: always()
+        run: docker compose ps
 
-            - name: Show container logs
-              if: failure()
-              run: docker compose logs
+      - name: Show container logs
+        if: failure()
+        run: docker compose logs
 
-            - name: Stop application
-              if: always()
-              run: docker compose down
+      - name: Stop application
+        if: always()
+        run: docker compose down
