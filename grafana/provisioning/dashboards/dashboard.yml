@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: UTEC_IA
+    orgId: 1
+    folder: UTEC_IA
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

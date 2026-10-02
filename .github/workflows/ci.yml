@@ -1,0 +1,160 @@
+name: UTEC_IA CI
+
+on:
+  push:
+    branches:
+      - "dev/**"
+      - development
+      - test
+      - main
+
+  pull_request:
+    branches:
+      - development
+      - test
+      - main
+
+jobs:
+
+  backend-quality:
+    name: Backend - Tests and Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run Pytest
+        working-directory: backend
+        run: python -m pytest
+
+      - name: Run Pylint
+        working-directory: backend
+        run: pylint app tests
+
+      - name: Audit Python dependencies
+        working-directory: backend
+        run: pip-audit -r requirements.txt
+
+
+  frontend-quality:
+    name: Frontend - Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: frontend
+        run: npm run lint
+
+
+  docker-integration:
+    name: Docker - Build, Security and Smoke Test
+    runs-on: ubuntu-latest
+
+    needs:
+      - backend-quality
+      - frontend-quality
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'utec-ia-backend:latest'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'utec-ia-frontend:latest'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      - name: Start application
+        run: docker compose up -d
+
+      - name: Wait for application
+        run: sleep 10
+
+      - name: Backend health check
+        run: curl --fail http://localhost/health
+
+      - name: Frontend smoke test
+        run: curl --fail http://localhost/
+
+      - name: Chat API smoke test
+        run: |
+          curl --fail \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"message":"cuantos creditos tengo"}' \
+            http://localhost/api/chat
+
+      - name: Show container status
+        if: always()
+        run: docker compose ps
+
+      - name: Show container logs
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop application
+        if: always()
+        run: docker compose down
+
+  deploy:
+    name: Deploy to Test VM
+
+    needs:
+      - backend-quality
+      - frontend-quality
+      - docker-integration
+
+    if: github.ref == 'refs/heads/test'
+
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy application
+        run: docker compose up -d --build
+
+      - name: Verify deployment
+        run: curl --fail http://localhost/health
