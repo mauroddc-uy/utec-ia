@@ -138,7 +138,7 @@ Configurar ahi revisiones obligatorias si el docente lo pide. La presentacion no
 - `VM_HOST`: IP/DNS de la VM.
 - `VM_USER`: usuario SSH. Si queda vacio, se usa el username de la credencial.
 - `VM_PORT`: puerto SSH.
-- `VM_APP_DIR`: directorio remoto, por defecto `/opt/utec-ia`.
+- `VM_APP_DIR`: directorio remoto, por defecto `/home/mauro/utec-ia`.
 - `VM_FRONTEND_PORT`: puerto publicado del frontend en la VM.
 - `SSH_CREDENTIALS_ID`: `utec-ia-vm-ssh`.
 
@@ -153,7 +153,7 @@ Despues de un despliegue:
 En la VM:
 
 ```bash
-cd /opt/utec-ia
+cd /home/mauro/utec-ia
 docker compose -f docker-compose.vm.yml --env-file .env ps
 docker logs utec-ia-backend --tail=50
 docker logs utec-ia-frontend --tail=50

@@ -12,7 +12,7 @@ pipeline {
         string(name: 'VM_HOST', defaultValue: '192.168.6.128', description: 'IP o DNS de la VM Ubuntu.')
         string(name: 'VM_USER', defaultValue: 'mauro', description: 'Usuario SSH de la VM.')
         string(name: 'VM_PORT', defaultValue: '22', description: 'Puerto SSH de la VM.')
-        string(name: 'VM_APP_DIR', defaultValue: '/opt/utec-ia', description: 'Directorio remoto de despliegue.')
+        string(name: 'VM_APP_DIR', defaultValue: '/home/mauro/utec-ia', description: 'Directorio remoto de despliegue.')
         string(name: 'VM_FRONTEND_PORT', defaultValue: '8080', description: 'Puerto publicado por la VM para el frontend.')
         string(name: 'SSH_CREDENTIALS_ID', defaultValue: 'utec-ia-vm-ssh', description: 'Credencial Jenkins tipo SSH Username with private key.')
         string(name: 'BACKEND_IMAGE_NAME', defaultValue: 'utec-ia-backend', description: 'Nombre local de imagen backend.')
