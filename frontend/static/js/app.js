@@ -897,7 +897,7 @@ async function checkBackendStatus() {
 
     serviceStatusEl.textContent = '● SERVICIO DISPONIBLE';
     serviceStatusEl.className = 'service-status available';
-  } catch (error) {
+  } catch {
     serviceStatusEl.textContent = '● SERVICIO NO DISPONIBLE';
     serviceStatusEl.className = 'service-status unavailable';
   }

@@ -1,0 +1,43 @@
+services:
+  backend:
+    image: ${BACKEND_IMAGE:-utec-ia-backend}:${IMAGE_TAG:?IMAGE_TAG is required}
+    container_name: utec-ia-backend
+    restart: unless-stopped
+    environment:
+      UTEC_IA_VERSION: ${UTEC_IA_VERSION:-0.1.0}
+      UTEC_IA_COMMIT_SHA: ${UTEC_IA_COMMIT_SHA:-unknown}
+      UTEC_IA_ENVIRONMENT: ${UTEC_IA_ENVIRONMENT:-vm-ubuntu}
+      UTEC_IA_MODE: ${UTEC_IA_MODE:-demo}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-*}
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-utec-ia-frontend}:${IMAGE_TAG:?IMAGE_TAG is required}
+    container_name: utec-ia-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -qO-
+        - http://127.0.0.1/frontend-health
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
