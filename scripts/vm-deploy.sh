@@ -55,6 +55,18 @@ REMOTE="${VM_USER}@${VM_HOST}"
 echo "Preparando directorio remoto ${VM_APP_DIR}..."
 ssh $SSH_OPTIONS "$REMOTE" "mkdir -p '$VM_APP_DIR'"
 
+echo "Guardando configuracion remota previa si existe..."
+ssh $SSH_OPTIONS "$REMOTE" "
+  set -eu
+  cd '$VM_APP_DIR'
+  if [ -f .env ]; then
+    cp .env .env.previous
+  fi
+  if [ -f docker-compose.vm.yml ]; then
+    cp docker-compose.vm.yml docker-compose.vm.yml.previous
+  fi
+"
+
 echo "Copiando artefactos a la VM..."
 scp $SSH_OPTIONS \
   "$PACKAGE_DIR/backend.tar" \

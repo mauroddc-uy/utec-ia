@@ -159,6 +159,27 @@ docker logs utec-ia-backend --tail=50
 docker logs utec-ia-frontend --tail=50
 ```
 
+## Rollback manual
+
+Cada deploy guarda la configuracion anterior de la VM como:
+
+```text
+.env.previous
+docker-compose.vm.yml.previous
+```
+
+Para restaurarla:
+
+```bash
+VM_HOST=192.168.6.128 \
+VM_USER=mauro \
+VM_PORT=22 \
+VM_APP_DIR=/home/mauro/utec-ia \
+sh scripts/vm-rollback.sh
+```
+
+Las imagenes anteriores deben seguir cargadas en Docker dentro de la VM.
+
 ## Limitaciones de este flujo
 
 - No usa registry. Jenkins transfiere imagenes con `docker save` + `scp`.
