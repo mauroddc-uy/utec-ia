@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: utec-ia-config
+  namespace: utec-ia-pilot
+  labels:
+    app.kubernetes.io/part-of: utec-ia
+data:
+  CORS_ALLOW_ORIGINS: "*"
+  UTEC_IA_ENVIRONMENT: "kubernetes-local"
+  UTEC_IA_MODE: "demo"

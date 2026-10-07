@@ -1,0 +1,16 @@
+services:
+  jenkins:
+    build:
+      context: ./jenkins
+    container_name: utec-ia-jenkins
+    user: root
+    restart: unless-stopped
+    ports:
+      - "${JENKINS_HTTP_PORT:-8081}:8080"
+      - "${JENKINS_AGENT_PORT:-50000}:50000"
+    volumes:
+      - jenkins-home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  jenkins-home:

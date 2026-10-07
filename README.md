@@ -1,147 +1,126 @@
 # UTEC_IA
 
-UTEC_IA es un asistente academico y documental para UTEC. Esta version prepara el prototipo para una demostracion DevOps separando frontend y backend sin implementar todavia RAG, autenticacion, base de datos, servicios externos de IA, Docker, Kubernetes ni CI/CD.
+UTEC_IA es el prototipo del asistente academico usado para el piloto DevOps del Grupo 4. La aplicacion conserva la interfaz original y separa frontend y backend para demostrar build, ejecucion local, Kubernetes y pipeline Jenkins.
 
-Los datos actuales son simulados y sirven solo para validar el flujo:
-
-```text
-Frontend
-    |
-    | HTTP API
-    v
-FastAPI backend
-    |
-    +-- respuestas mock
-```
+El alcance actual es demo: el chat responde datos simulados, el login vive en el navegador y no es autenticacion real, y no se implementan RAG, AWS, Bedrock, S3, RDS ni pgvector como dependencias obligatorias.
 
 ## Estructura
 
 ```text
-utec-ia/
-+-- frontend/
-|   +-- index.html
-|   +-- config.js
-|   +-- config.example.js
-|   +-- static/
-|       +-- css/styles.css
-|       +-- js/app.js
-+-- backend/
-|   +-- app/
-|   |   +-- main.py
-|   |   +-- api/
-|   |   +-- models/
-|   |   +-- services/
-|   +-- tests/
-|   +-- requirements.txt
-+-- .env.example
-+-- README.md
+frontend/              UI estatica servida por Nginx
+backend/               API FastAPI
+k8s/base/              Manifiestos del piloto Kubernetes local
+scripts/               Smoke tests, rollback y comandos de demo
+docker-compose.yml     Demo local frontend/backend y perfiles opcionales
+Jenkinsfile            Pipeline CI/CD para Kubernetes
+Jenkinsfile.vm         Pipeline CI/CD alternativo hacia VM Ubuntu
+PILOTO_DEVOPS.md       Guia reproducible de demostracion
+JENKINS_VM_DEPLOY.md   Guia Jenkins local + VM Ubuntu
+Dockerfile             Legado de imagen unica; no es el camino del piloto
 ```
 
-## Frontend
+## Backend en PyCharm o terminal
 
-El frontend conserva la interfaz visual existente: chat, textbox, mensajes, historico, sidebar, login demo, perfil y estilos. Ahora se sirve como sitio estatico y consume la API del backend.
+Usar Python 3.12 y tomar `backend/` como working directory.
 
-Configuracion de API:
+```powershell
+python -m pip install -r backend/requirements-dev.txt
+cd backend
+python -m pytest
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-- `frontend/config.js` define `window.UTEC_IA_CONFIG.API_URL`.
-- `frontend/config.example.js` muestra el valor esperado para desarrollo local.
+Endpoints principales:
 
-Iniciar frontend:
+- `GET /health`: salud real del backend demo y metadata de version/commit.
+- `GET /version`: version desplegada.
+- `POST /api/chat`: chat mock con `message` obligatorio y `user_email` opcional.
+- `GET /metrics`: metricas Prometheus expuestas por FastAPI.
+
+## Frontend local
+
+Para el recorrido completo recomendado, usar Docker Compose para que el navegador consuma `/api/chat` por el mismo origen del frontend y Nginx haga reverse proxy al backend interno.
+
+```powershell
+docker compose up --build
+```
+
+Abrir:
+
+```text
+http://127.0.0.1:8080
+```
+
+Para servir solo archivos estaticos en PyCharm o terminal:
 
 ```powershell
 cd frontend
 python -m http.server 3000
 ```
 
-Abrir:
+En ese modo no hay reverse proxy. Usar `frontend/config.example.js` como referencia si se necesita apuntar temporalmente a `http://127.0.0.1:8000` durante desarrollo local; no tratar ese login como autenticacion real.
 
-```text
-http://127.0.0.1:3000
-```
+## Compose
 
-## Backend
+Servicios por defecto:
 
-El backend es una API FastAPI minima. Contiene health check, version y respuestas mock para el chat.
+- `frontend`: Nginx con UI y proxy a `backend:8000`.
+- `backend`: FastAPI demo.
 
-Instalar dependencias:
-
-```powershell
-cd backend
-python -m pip install -r requirements.txt
-```
-
-Iniciar backend:
+Perfiles opcionales:
 
 ```powershell
-cd backend
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+docker compose --profile data up -d postgres
+docker compose --profile observability up -d
 ```
 
-## Endpoints
+`postgres` usa pgvector pero la API actual no lo consume. Observabilidad local incluye Prometheus, Grafana, Loki y Alloy para la demo de logs/metricas disponibles.
 
-### `GET /health`
-
-```json
-{
-  "status": "ok",
-  "service": "utec-ia-backend"
-}
-```
-
-### `GET /version`
-
-```json
-{
-  "application": "UTEC_IA",
-  "version": "0.1.0"
-}
-```
-
-### `POST /api/chat`
-
-Request:
-
-```json
-{
-  "message": "Cuantos creditos tengo?"
-}
-```
-
-Response:
-
-```json
-{
-  "response": "Segun los datos de demostracion, el estudiante posee 245 creditos aprobados."
-}
-```
-
-Consultas mock contempladas:
-
-- creditos del estudiante;
-- materias cursadas;
-- inasistencias;
-- informacion sobre becas;
-- documentos requeridos para tramites.
-
-Para cualquier otra consulta, el backend responde que la integracion academica, documental e IA se implementara posteriormente.
-
-## Tests
-
-Desde `backend/`:
+Variables sin secretos reales:
 
 ```powershell
-python -m pytest
+copy .env.example .env
 ```
 
-Los tests cubren:
+## Kubernetes local
 
-- `/health`;
-- `/version`;
-- `/api/chat`;
-- una respuesta academica mock sobre creditos.
+Los manifiestos viven en `k8s/base`. El namespace por defecto es `utec-ia-pilot`.
 
-## Notas
+```powershell
+kubectl apply -k k8s/base
+kubectl -n utec-ia-pilot rollout status deployment/backend --timeout=120s
+kubectl -n utec-ia-pilot rollout status deployment/frontend --timeout=120s
+kubectl -n utec-ia-pilot port-forward svc/frontend 8080:80
+```
 
-- CORS esta abierto para desarrollo local y debera restringirse cuando existan dominios reales.
-- Las conversaciones y el perfil demo siguen viviendo en el navegador.
-- Esta separacion deja listo el proyecto para una etapa posterior de contenerizacion y CI/CD.
+Abrir `http://127.0.0.1:8080`.
+
+El backend corre con dos replicas, pero si el cluster local tiene un solo nodo eso no demuestra tolerancia a perdida del nodo. Solo demuestra reemplazo de Pods y acceso estable por Service.
+
+## Jenkins
+
+El `Jenkinsfile` valida PRs sin desplegar. En la rama autorizada por `DEPLOY_BRANCH`, ejecuta:
+
+1. checkout del commit del job;
+2. tests backend;
+3. lint frontend;
+4. build de ambas imagenes;
+5. push al registro con tag inmutable basado en SHA;
+6. despliegue Kubernetes;
+7. espera de rollout;
+8. smoke test por el frontend real;
+9. recuperacion explicita si falla una actualizacion iniciada.
+
+Configurar en Jenkins:
+
+- `REGISTRY_CREDENTIALS_ID`: usuario/password del registro.
+- `KUBECONFIG_CREDENTIALS_ID`: kubeconfig como file credential.
+- `IMAGE_PULL_SECRET`: opcional, si el cluster necesita credenciales para descargar imagenes privadas.
+
+El flujo anterior de Docker en VM por SCP queda como legado historico; el objetivo principal de este repo es el piloto Kubernetes local descrito en `PILOTO_DEVOPS.md`.
+
+## Jenkins local y VM Ubuntu
+
+Para una demo sin Kubernetes, usar `Jenkinsfile.vm`. Ese pipeline valida PRs sin desplegar y despliega automaticamente a una VM Ubuntu cuando hay merge/push a la rama autorizada.
+
+La guia completa esta en `JENKINS_VM_DEPLOY.md`.

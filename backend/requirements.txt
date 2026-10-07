@@ -1,6 +1,5 @@
-fastapi
-uvicorn
-pydantic
-pytest
-httpx
-prometheus-fastapi-instrumentator
+fastapi==0.142.2
+pydantic==2.10.4
+prometheus-fastapi-instrumentator==8.1.0
+starlette==1.7.0
+uvicorn[standard]==0.34.0

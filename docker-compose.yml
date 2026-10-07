@@ -1,41 +1,86 @@
 services:
-
   backend:
+    image: ${BACKEND_IMAGE:-utec-ia-backend}:${IMAGE_TAG:-local}
     build:
       context: ./backend
+      args:
+        UTEC_IA_VERSION: ${UTEC_IA_VERSION:-0.1.0}
+        UTEC_IA_COMMIT_SHA: ${UTEC_IA_COMMIT_SHA:-local}
     container_name: utec-ia-backend
     restart: unless-stopped
+    environment:
+      UTEC_IA_VERSION: ${UTEC_IA_VERSION:-0.1.0}
+      UTEC_IA_COMMIT_SHA: ${UTEC_IA_COMMIT_SHA:-local}
+      UTEC_IA_ENVIRONMENT: ${UTEC_IA_ENVIRONMENT:-compose}
+      UTEC_IA_MODE: ${UTEC_IA_MODE:-demo}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-*}
     expose:
-      - "8000"   #exponemos el puerto dentro de docker pero no fuera
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
 
   frontend:
+    image: ${FRONTEND_IMAGE:-utec-ia-frontend}:${IMAGE_TAG:-local}
     build:
       context: ./frontend
+      args:
+        UTEC_IA_VERSION: ${UTEC_IA_VERSION:-0.1.0}
+        UTEC_IA_COMMIT_SHA: ${UTEC_IA_COMMIT_SHA:-local}
     container_name: utec-ia-frontend
     restart: unless-stopped
     ports:
-      - "80:80"   #aca si exponemos el front al puerto 80 externo
+      - "${FRONTEND_PORT:-8080}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+
+  postgres:
+    profiles:
+      - data
+    image: pgvector/pgvector:pg16
+    container_name: utec-ia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-utec_ia}
+      POSTGRES_USER: ${POSTGRES_USER:-utec_ia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
 
   prometheus:
-    image: prom/prometheus:latest
+    profiles:
+      - observability
+    image: prom/prometheus:v3.7.0
     container_name: utec-ia-prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   grafana:
-    image: grafana/grafana:latest
+    profiles:
+      - observability
+    image: grafana/grafana:12.2.0
     container_name: utec-ia-grafana
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -44,18 +89,22 @@ services:
       - prometheus
 
   loki:
+    profiles:
+      - observability
     image: grafana/loki:3.7.0
     container_name: utec-ia-loki
     restart: unless-stopped
     command: -config.file=/etc/loki/loki-config.yml
     ports:
-      - "3100:3100"
+      - "${LOKI_PORT:-3100}:3100"
     volumes:
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
       - loki-data:/loki
 
   alloy:
-    image: grafana/alloy:latest
+    profiles:
+      - observability
+    image: grafana/alloy:v1.10.2
     container_name: utec-ia-alloy
     restart: unless-stopped
     command:
@@ -70,7 +119,8 @@ services:
       - loki
 
 volumes:
-  grafana-data:
-  prometheus-data:
-  loki-data:
   alloy-data:
+  grafana-data:
+  loki-data:
+  postgres-data:
+  prometheus-data:

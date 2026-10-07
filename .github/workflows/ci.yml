@@ -75,6 +75,8 @@ jobs:
   docker-integration:
     name: Docker - Build, Security and Smoke Test
     runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: latest
 
     needs:
       - backend-quality
