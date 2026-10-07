@@ -49,7 +49,9 @@ UTEC_IA_MODE=${UTEC_IA_MODE}
 CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}
 EOF
 
-SSH_OPTIONS="-i $SSH_KEY -p $VM_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+SSH_COMMON_OPTIONS="-i $SSH_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+SSH_OPTIONS="$SSH_COMMON_OPTIONS -p $VM_PORT"
+SCP_OPTIONS="$SSH_COMMON_OPTIONS -P $VM_PORT"
 REMOTE="${VM_USER}@${VM_HOST}"
 
 echo "Preparando directorio remoto ${VM_APP_DIR}..."
@@ -68,7 +70,7 @@ ssh $SSH_OPTIONS "$REMOTE" "
 "
 
 echo "Copiando artefactos a la VM..."
-scp $SSH_OPTIONS \
+scp $SCP_OPTIONS \
   "$PACKAGE_DIR/backend.tar" \
   "$PACKAGE_DIR/frontend.tar" \
   "$PACKAGE_DIR/docker-compose.vm.yml" \
