@@ -31,7 +31,19 @@ pipeline {
                 script {
                     env.GIT_SHA = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
                     env.IMAGE_TAG = env.GIT_SHA.take(12)
-                    env.GIT_BRANCH_NAME = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                    def branchName = (env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD')).trim()
+                    def deployBranch = (params.DEPLOY_BRANCH ?: '').trim()
+                    env.GIT_BRANCH_NAME = branchName.replaceFirst(/^origin\//, '')
+                    env.DEPLOY_BRANCH_NAME = deployBranch.replaceFirst(/^origin\//, '')
+                    env.SHOULD_DEPLOY = (!env.CHANGE_ID && env.GIT_BRANCH_NAME == env.DEPLOY_BRANCH_NAME) ? 'true' : 'false'
+
+                    echo """
+Deploy gate:
+  branch=${env.GIT_BRANCH_NAME}
+  deployBranch=${env.DEPLOY_BRANCH_NAME}
+  changeId=${env.CHANGE_ID ?: ''}
+  shouldDeploy=${env.SHOULD_DEPLOY}
+"""
                 }
                 sh 'rm -rf .jenkins && mkdir -p "$PACKAGE_DIR"'
             }
@@ -102,7 +114,7 @@ pipeline {
         stage('Deploy VM') {
             when {
                 expression {
-                    return !env.CHANGE_ID && env.GIT_BRANCH_NAME == params.DEPLOY_BRANCH
+                    return env.SHOULD_DEPLOY == 'true'
                 }
             }
             steps {
@@ -163,7 +175,7 @@ pipeline {
         stage('Smoke VM') {
             when {
                 expression {
-                    return !env.CHANGE_ID && env.GIT_BRANCH_NAME == params.DEPLOY_BRANCH
+                    return env.SHOULD_DEPLOY == 'true'
                 }
             }
             steps {
