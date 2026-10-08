@@ -39,10 +39,10 @@ Jenkins local en Docker
         v
 
 VM Ubuntu VMware
-  IP: 192.168.6.128
-  Usuario SSH: mauro
+  IP/DNS: valor guardado en Jenkins como Secret text
+  Usuario SSH: valor guardado en la credencial SSH
   Puerto SSH: 22
-  Directorio app: /home/mauro/utec-ia
+  Directorio app: /opt/utec-ia
   Docker Engine: instalado
   Docker Compose: instalado
 
@@ -58,7 +58,7 @@ Contenedores en la VM
         v
 
 Navegador
-  http://192.168.6.128:8080
+  http://<IP_O_DNS_VM>:8080
 ```
 
 ## Como se conectan las piezas
@@ -94,13 +94,13 @@ docker compose -f docker-compose.vm.yml --env-file .env up -d --remove-orphans
 8. `Smoke VM` ejecuta `scripts/smoke-test.sh` contra:
 
 ```text
-http://192.168.6.128:8080
+http://<IP_O_DNS_VM>:8080
 ```
 
 El frontend corre en Nginx. El navegador llama al mismo origen:
 
 ```text
-http://192.168.6.128:8080/api/chat
+http://<IP_O_DNS_VM>:8080/api/chat
 ```
 
 Nginx proxyea internamente al backend:
@@ -140,8 +140,16 @@ Debe existir una credencial:
 ```text
 ID: utec-ia-vm-ssh
 Tipo: SSH Username with private key
-Username: mauro
+Username: usuario de la VM
 Private key: clave privada con acceso a la VM
+```
+
+Tambien debe existir una credencial para no versionar la IP o DNS:
+
+```text
+ID: utec-ia-vm-host
+Tipo: Secret text
+Secret: IP o DNS real de la VM
 ```
 
 El job debe ser Multibranch Pipeline:
@@ -158,10 +166,10 @@ Validaciones ya verificadas:
 ```bash
 docker version
 docker compose version
-groups mauro
+groups <USUARIO_VM>
 ```
 
-El usuario `mauro` debe pertenecer al grupo `docker`.
+El usuario SSH debe pertenecer al grupo `docker`.
 
 SSH debe estar activo:
 
@@ -267,10 +275,11 @@ Usar:
 
 ```text
 DEPLOY_BRANCH=devops/jenkins-vm-pilot
-VM_HOST=192.168.6.128
-VM_USER=mauro
+VM_HOST=<IP_O_DNS_VM>
+VM_HOST_CREDENTIALS_ID=utec-ia-vm-host
+VM_USER=<USUARIO_VM>
 VM_PORT=22
-VM_APP_DIR=/home/mauro/utec-ia
+VM_APP_DIR=/opt/utec-ia
 VM_FRONTEND_PORT=8080
 SSH_CREDENTIALS_ID=utec-ia-vm-ssh
 BACKEND_IMAGE_NAME=utec-ia-backend
@@ -292,19 +301,19 @@ Smoke VM              OK
 Al finalizar, abrir:
 
 ```text
-http://192.168.6.128:8080
+http://<IP_O_DNS_VM>:8080
 ```
 
 Validar por PowerShell:
 
 ```powershell
-.\scripts\smoke-test.ps1 -BaseUrl http://192.168.6.128:8080
+.\scripts\smoke-test.ps1 -BaseUrl http://<IP_O_DNS_VM>:8080
 ```
 
 Validar version:
 
 ```powershell
-Invoke-RestMethod http://192.168.6.128:8080/version
+Invoke-RestMethod http://<IP_O_DNS_VM>:8080/version
 ```
 
 Debe devolver metadata parecida a:
@@ -324,7 +333,7 @@ Debe devolver metadata parecida a:
 En la VM:
 
 ```bash
-cd /home/mauro/utec-ia
+cd /opt/utec-ia
 docker compose -f docker-compose.vm.yml --env-file .env ps
 docker logs utec-ia-backend --tail=30
 docker logs utec-ia-frontend --tail=30
@@ -403,17 +412,17 @@ No afirmar "cero interrupciones" sin medirlo. Este flujo reinicia contenedores c
 Antes de copiar una nueva configuracion, `scripts/vm-deploy.sh` guarda en la VM:
 
 ```text
-/home/mauro/utec-ia/.env.previous
-/home/mauro/utec-ia/docker-compose.vm.yml.previous
+/opt/utec-ia/.env.previous
+/opt/utec-ia/docker-compose.vm.yml.previous
 ```
 
 Si una actualizacion deja la app mal, se puede restaurar la configuracion previa con:
 
 ```bash
-VM_HOST=192.168.6.128 \
-VM_USER=mauro \
+VM_HOST=<IP_O_DNS_VM> \
+VM_USER=<USUARIO_VM> \
 VM_PORT=22 \
-VM_APP_DIR=/home/mauro/utec-ia \
+VM_APP_DIR=/opt/utec-ia \
 sh scripts/vm-rollback.sh
 ```
 
@@ -422,7 +431,7 @@ Si se ejecuta desde Jenkins y se quiere usar la misma credencial SSH, el rollbac
 Validacion posterior:
 
 ```powershell
-.\scripts\smoke-test.ps1 -BaseUrl http://192.168.6.128:8080
+.\scripts\smoke-test.ps1 -BaseUrl http://<IP_O_DNS_VM>:8080
 ```
 
 Este rollback restaura Compose y `.env`; las imagenes anteriores deben seguir existiendo en Docker dentro de la VM. No ejecutar `docker image prune` antes de confirmar que no se necesitara rollback.
@@ -461,7 +470,7 @@ Smoke VM
 Y debe responder:
 
 ```text
-http://192.168.6.128:8080
+http://<IP_O_DNS_VM>:8080
 ```
 
 ## Troubleshooting
@@ -497,7 +506,7 @@ DEPLOY_BRANCH=devops/jenkins-vm-pilot
 Verificar desde Windows:
 
 ```powershell
-Test-NetConnection -ComputerName 192.168.6.128 -Port 22
+Test-NetConnection -ComputerName <IP_O_DNS_VM> -Port 22
 ```
 
 Verificar en la VM:
@@ -510,8 +519,8 @@ Verificar Jenkins:
 
 ```text
 Credential ID = utec-ia-vm-ssh
-Username = mauro
-La private key corresponde a una public key autorizada en /home/mauro/.ssh/authorized_keys
+Username = usuario de la VM
+La private key corresponde a una public key autorizada en ~/.ssh/authorized_keys del usuario SSH
 ```
 
 ### Deploy pasa pero navegador no abre
@@ -519,13 +528,13 @@ La private key corresponde a una public key autorizada en /home/mauro/.ssh/autho
 Verificar desde Windows:
 
 ```powershell
-Test-NetConnection -ComputerName 192.168.6.128 -Port 8080
+Test-NetConnection -ComputerName <IP_O_DNS_VM> -Port 8080
 ```
 
 Verificar en la VM:
 
 ```bash
-cd /home/mauro/utec-ia
+cd /opt/utec-ia
 docker compose -f docker-compose.vm.yml --env-file .env ps
 docker logs utec-ia-frontend --tail=50
 docker logs utec-ia-backend --tail=50
@@ -537,7 +546,7 @@ sudo ufw status
 El smoke test compara `/version` con el SHA esperado. Verificar:
 
 ```bash
-cat /home/mauro/utec-ia/.env
+cat /opt/utec-ia/.env
 ```
 
 Debe contener:

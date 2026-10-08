@@ -16,12 +16,12 @@ Merge a la rama autorizada
 
 No se guardan secretos en Git. Estos valores se cargan en Jenkins o como parametros del job:
 
-- IP o DNS de la VM: `VM_HOST`. Para este entorno: `192.168.6.128`.
-- Usuario SSH de la VM: `VM_USER`. Para este entorno: `mauro`.
-- Puerto SSH: `VM_PORT`, normalmente `22`. Para este entorno se asume `22`.
+- IP o DNS de la VM: credencial Jenkins Secret text `utec-ia-vm-host`, o parametro manual `VM_HOST`.
+- Usuario SSH de la VM: username de la credencial SSH, o parametro manual `VM_USER`.
+- Puerto SSH: `VM_PORT`, normalmente `22`.
 - Clave privada SSH con acceso a la VM: credencial Jenkins `utec-ia-vm-ssh`.
-- Rama que despliega: `DEPLOY_BRANCH`. Para este entorno: `test`.
-- Puerto web publicado en la VM: `VM_FRONTEND_PORT`. Para este entorno: `8080`.
+- Rama que despliega: `DEPLOY_BRANCH`.
+- Puerto web publicado en la VM: `VM_FRONTEND_PORT`.
 - URL del repositorio GitHub: `https://github.com/mauroddc-uy/utec-ia`.
 
 ## Preparar la VM Ubuntu
@@ -97,10 +97,29 @@ SSH Username with private key
 Valores:
 
 - ID: `utec-ia-vm-ssh`.
-- Username: usuario de la VM, por ejemplo `ubuntu` o `matias`.
+- Username: usuario de la VM, por ejemplo `ubuntu`.
 - Private Key: clave privada que tiene acceso SSH a la VM.
 
 Probar desde Jenkins, si hace falta, creando un job simple o usando el pipeline.
+
+## Crear credencial del host de la VM
+
+Para que la IP o DNS no viaje en Git, guardarla como credencial Jenkins:
+
+```text
+Manage Jenkins -> Credentials -> System -> Global credentials -> Add Credentials
+```
+
+Tipo:
+
+```text
+Secret text
+```
+
+Valores:
+
+- ID: `utec-ia-vm-host`.
+- Secret: IP o DNS real de la VM.
 
 ## Crear job Multibranch Pipeline
 
@@ -135,10 +154,11 @@ Configurar ahi revisiones obligatorias si el docente lo pide. La presentacion no
 ## Parametros importantes del job
 
 - `DEPLOY_BRANCH`: rama que despliega.
-- `VM_HOST`: IP/DNS de la VM.
+- `VM_HOST`: override manual opcional de IP/DNS de la VM.
+- `VM_HOST_CREDENTIALS_ID`: credencial Secret text con la IP/DNS de la VM.
 - `VM_USER`: usuario SSH. Si queda vacio, se usa el username de la credencial.
 - `VM_PORT`: puerto SSH.
-- `VM_APP_DIR`: directorio remoto, por defecto `/home/mauro/utec-ia`.
+- `VM_APP_DIR`: directorio remoto, por defecto `/opt/utec-ia`.
 - `VM_FRONTEND_PORT`: puerto publicado del frontend en la VM.
 - `SSH_CREDENTIALS_ID`: `utec-ia-vm-ssh`.
 
@@ -153,7 +173,7 @@ Despues de un despliegue:
 En la VM:
 
 ```bash
-cd /home/mauro/utec-ia
+cd /opt/utec-ia
 docker compose -f docker-compose.vm.yml --env-file .env ps
 docker logs utec-ia-backend --tail=50
 docker logs utec-ia-frontend --tail=50
@@ -171,10 +191,10 @@ docker-compose.vm.yml.previous
 Para restaurarla:
 
 ```bash
-VM_HOST=192.168.6.128 \
-VM_USER=mauro \
+VM_HOST=<IP_O_DNS_VM> \
+VM_USER=<USUARIO_VM> \
 VM_PORT=22 \
-VM_APP_DIR=/home/mauro/utec-ia \
+VM_APP_DIR=/opt/utec-ia \
 sh scripts/vm-rollback.sh
 ```
 
