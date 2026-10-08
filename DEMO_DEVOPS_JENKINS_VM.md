@@ -31,7 +31,7 @@ GitHub
 Jenkins local en Docker
   URL: http://127.0.0.1:8081
   Pipeline: Jenkinsfile.vm
-  Credencial SSH: utec-ia-vm-ssh
+  Credencial SSH: utec-ia-vm-ssh-file
   Usa Docker del host mediante /var/run/docker.sock
 
         |
@@ -42,7 +42,7 @@ VM Ubuntu VMware
   IP/DNS: valor guardado en Jenkins como Secret text
   Usuario SSH: valor guardado en la credencial SSH
   Puerto SSH: 22
-  Directorio app: /opt/utec-ia
+  Directorio app: /home/<USUARIO_VM>/utec-ia
   Docker Engine: instalado
   Docker Compose: instalado
 
@@ -138,7 +138,7 @@ http://127.0.0.1:8081
 Debe existir una credencial:
 
 ```text
-ID: utec-ia-vm-ssh
+ID: utec-ia-vm-ssh-file
 Tipo: SSH Username with private key
 Username: usuario de la VM
 Private key: clave privada con acceso a la VM
@@ -275,13 +275,10 @@ Usar:
 
 ```text
 DEPLOY_BRANCH=devops/jenkins-vm-pilot
-VM_HOST=<IP_O_DNS_VM>
 VM_HOST_CREDENTIALS_ID=utec-ia-vm-host
-VM_USER=<USUARIO_VM>
 VM_PORT=22
-VM_APP_DIR=/opt/utec-ia
 VM_FRONTEND_PORT=8080
-SSH_CREDENTIALS_ID=utec-ia-vm-ssh
+SSH_CREDENTIALS_ID=utec-ia-vm-ssh-file
 BACKEND_IMAGE_NAME=utec-ia-backend
 FRONTEND_IMAGE_NAME=utec-ia-frontend
 ```
@@ -333,7 +330,7 @@ Debe devolver metadata parecida a:
 En la VM:
 
 ```bash
-cd /opt/utec-ia
+cd /home/<USUARIO_VM>/utec-ia
 docker compose -f docker-compose.vm.yml --env-file .env ps
 docker logs utec-ia-backend --tail=30
 docker logs utec-ia-frontend --tail=30
@@ -412,8 +409,8 @@ No afirmar "cero interrupciones" sin medirlo. Este flujo reinicia contenedores c
 Antes de copiar una nueva configuracion, `scripts/vm-deploy.sh` guarda en la VM:
 
 ```text
-/opt/utec-ia/.env.previous
-/opt/utec-ia/docker-compose.vm.yml.previous
+/home/<USUARIO_VM>/utec-ia/.env.previous
+/home/<USUARIO_VM>/utec-ia/docker-compose.vm.yml.previous
 ```
 
 Si una actualizacion deja la app mal, se puede restaurar la configuracion previa con:
@@ -422,7 +419,7 @@ Si una actualizacion deja la app mal, se puede restaurar la configuracion previa
 VM_HOST=<IP_O_DNS_VM> \
 VM_USER=<USUARIO_VM> \
 VM_PORT=22 \
-VM_APP_DIR=/opt/utec-ia \
+VM_APP_DIR=/home/<USUARIO_VM>/utec-ia \
 sh scripts/vm-rollback.sh
 ```
 
@@ -518,7 +515,7 @@ sudo systemctl status ssh --no-pager
 Verificar Jenkins:
 
 ```text
-Credential ID = utec-ia-vm-ssh
+Credential ID = utec-ia-vm-ssh-file
 Username = usuario de la VM
 La private key corresponde a una public key autorizada en ~/.ssh/authorized_keys del usuario SSH
 ```
@@ -534,7 +531,7 @@ Test-NetConnection -ComputerName <IP_O_DNS_VM> -Port 8080
 Verificar en la VM:
 
 ```bash
-cd /opt/utec-ia
+cd /home/<USUARIO_VM>/utec-ia
 docker compose -f docker-compose.vm.yml --env-file .env ps
 docker logs utec-ia-frontend --tail=50
 docker logs utec-ia-backend --tail=50
@@ -546,7 +543,7 @@ sudo ufw status
 El smoke test compara `/version` con el SHA esperado. Verificar:
 
 ```bash
-cat /opt/utec-ia/.env
+cat /home/<USUARIO_VM>/utec-ia/.env
 ```
 
 Debe contener:
