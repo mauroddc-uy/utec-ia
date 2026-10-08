@@ -16,8 +16,8 @@ Merge a la rama autorizada
 
 No se guardan secretos en Git. Estos valores se cargan en Jenkins o como parametros del job:
 
-- IP o DNS de la VM: credencial Jenkins Secret text `utec-ia-vm-host`, o parametro manual `VM_HOST`.
-- Usuario SSH de la VM: username de la credencial SSH, o parametro manual `VM_USER`.
+- IP o DNS de la VM: credencial Jenkins Secret text `utec-ia-vm-host`.
+- Usuario SSH de la VM: username de la credencial SSH.
 - Puerto SSH: `VM_PORT`, normalmente `22`.
 - Clave privada SSH con acceso a la VM: credencial Jenkins `utec-ia-vm-ssh`.
 - Rama que despliega: `DEPLOY_BRANCH`.
@@ -154,9 +154,7 @@ Configurar ahi revisiones obligatorias si el docente lo pide. La presentacion no
 ## Parametros importantes del job
 
 - `DEPLOY_BRANCH`: rama que despliega.
-- `VM_HOST`: override manual opcional de IP/DNS de la VM.
 - `VM_HOST_CREDENTIALS_ID`: credencial Secret text con la IP/DNS de la VM.
-- `VM_USER`: usuario SSH. Si queda vacio, se usa el username de la credencial.
 - `VM_PORT`: puerto SSH.
 - `VM_APP_DIR`: directorio remoto, por defecto `/opt/utec-ia`.
 - `VM_FRONTEND_PORT`: puerto publicado del frontend en la VM.

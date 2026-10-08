@@ -275,9 +275,7 @@ Usar:
 
 ```text
 DEPLOY_BRANCH=devops/jenkins-vm-pilot
-VM_HOST=<IP_O_DNS_VM>
 VM_HOST_CREDENTIALS_ID=utec-ia-vm-host
-VM_USER=<USUARIO_VM>
 VM_PORT=22
 VM_APP_DIR=/opt/utec-ia
 VM_FRONTEND_PORT=8080
