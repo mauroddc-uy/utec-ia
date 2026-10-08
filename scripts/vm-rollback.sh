@@ -15,7 +15,7 @@ required VM_HOST
 required VM_USER
 
 VM_PORT="${VM_PORT:-22}"
-VM_APP_DIR="${VM_APP_DIR:-/home/mauro/utec-ia}"
+VM_APP_DIR="${VM_APP_DIR:-/opt/utec-ia}"
 
 SSH_OPTIONS="-p $VM_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 if [ -n "${SSH_KEY:-}" ]; then
