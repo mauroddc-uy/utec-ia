@@ -19,7 +19,7 @@ No se guardan secretos en Git. Estos valores se cargan en Jenkins o como paramet
 - IP o DNS de la VM: credencial Jenkins Secret text `utec-ia-vm-host`.
 - Usuario SSH de la VM: username de la credencial SSH.
 - Puerto SSH: `VM_PORT`, normalmente `22`.
-- Clave privada SSH con acceso a la VM: credencial Jenkins `utec-ia-vm-ssh`.
+- Clave privada SSH con acceso a la VM: credencial Jenkins `utec-ia-vm-ssh-file`.
 - Rama que despliega: `DEPLOY_BRANCH`.
 - Puerto web publicado en la VM: `VM_FRONTEND_PORT`.
 - URL del repositorio GitHub: `https://github.com/mauroddc-uy/utec-ia`.
@@ -96,7 +96,7 @@ SSH Username with private key
 
 Valores:
 
-- ID: `utec-ia-vm-ssh`.
+- ID: `utec-ia-vm-ssh-file`.
 - Username: usuario de la VM, por ejemplo `ubuntu`.
 - Private Key: clave privada que tiene acceso SSH a la VM.
 
@@ -156,9 +156,9 @@ Configurar ahi revisiones obligatorias si el docente lo pide. La presentacion no
 - `DEPLOY_BRANCH`: rama que despliega.
 - `VM_HOST_CREDENTIALS_ID`: credencial Secret text con la IP/DNS de la VM.
 - `VM_PORT`: puerto SSH.
-- `VM_APP_DIR`: directorio remoto, por defecto `/opt/utec-ia`.
+- `VM_APP_DIR`: directorio remoto opcional. Si queda vacio, usa `/home/<usuario_ssh>/utec-ia`.
 - `VM_FRONTEND_PORT`: puerto publicado del frontend en la VM.
-- `SSH_CREDENTIALS_ID`: `utec-ia-vm-ssh`.
+- `SSH_CREDENTIALS_ID`: `utec-ia-vm-ssh-file`.
 
 ## Verificacion manual
 
@@ -171,7 +171,7 @@ Despues de un despliegue:
 En la VM:
 
 ```bash
-cd /opt/utec-ia
+cd /home/<USUARIO_VM>/utec-ia
 docker compose -f docker-compose.vm.yml --env-file .env ps
 docker logs utec-ia-backend --tail=50
 docker logs utec-ia-frontend --tail=50
@@ -192,7 +192,7 @@ Para restaurarla:
 VM_HOST=<IP_O_DNS_VM> \
 VM_USER=<USUARIO_VM> \
 VM_PORT=22 \
-VM_APP_DIR=/opt/utec-ia \
+VM_APP_DIR=/home/<USUARIO_VM>/utec-ia \
 sh scripts/vm-rollback.sh
 ```
 
