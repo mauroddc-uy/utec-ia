@@ -1,9 +1,0 @@
-global:
-  scrape_interval: 5s
-
-scrape_configs:
-  - job_name: "utec-ia-backend"
-
-    static_configs:
-      - targets:
-          - "backend:8000"
