@@ -8,21 +8,18 @@ pipeline {
     }
 
     parameters {
-        string(name: 'IMAGE_REGISTRY', defaultValue: 'registry.example.com', description: 'Registry host without protocol, for example ghcr.io.')
-        string(name: 'IMAGE_REPOSITORY_PREFIX', defaultValue: 'utec-ia', description: 'Repository path/prefix used for backend and frontend images.')
-        string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: 'utec-ia-registry', description: 'Jenkins username/password credential for docker login.')
-        string(name: 'KUBECONFIG_CREDENTIALS_ID', defaultValue: 'utec-ia-kubeconfig', description: 'Jenkins file credential containing kubeconfig for the target namespace.')
-        string(name: 'K8S_NAMESPACE', defaultValue: 'utec-ia-pilot', description: 'Kubernetes namespace for the pilot.')
-        string(name: 'DEPLOY_BRANCH', defaultValue: 'main', description: 'Only this branch deploys. Pull requests never deploy.')
-        string(name: 'IMAGE_PULL_SECRET', defaultValue: '', description: 'Optional existing Kubernetes imagePullSecret name in the namespace.')
-        booleanParam(name: 'USE_PORT_FORWARD', defaultValue: true, description: 'Use kubectl port-forward to smoke test the real frontend Service.')
-        string(name: 'FRONTEND_SMOKE_URL', defaultValue: 'http://127.0.0.1:18080', description: 'Frontend URL used by the smoke test.')
+        string(name: 'DEPLOY_BRANCH', defaultValue: 'test', description: 'Rama autorizada para despliegue automatico.')
+        string(name: 'VM_HOST_CREDENTIALS_ID', defaultValue: 'utec-ia-vm-host', description: 'Credencial Jenkins Secret text con la IP o DNS de la VM Ubuntu.')
+        string(name: 'VM_PORT', defaultValue: '22', description: 'Puerto SSH de la VM.')
+        string(name: 'VM_APP_DIR', defaultValue: '', description: 'Directorio remoto de despliegue. Si queda vacio, usa /home/<usuario_ssh>/utec-ia.')
+        string(name: 'VM_FRONTEND_PORT', defaultValue: '8080', description: 'Puerto publicado por la VM para el frontend.')
+        string(name: 'SSH_CREDENTIALS_ID', defaultValue: 'utec-ia-vm-ssh-file', description: 'Credencial Jenkins tipo SSH Username with private key.')
+        string(name: 'BACKEND_IMAGE_NAME', defaultValue: 'utec-ia-backend', description: 'Nombre local de imagen backend.')
+        string(name: 'FRONTEND_IMAGE_NAME', defaultValue: 'utec-ia-frontend', description: 'Nombre local de imagen frontend.')
     }
 
     environment {
-        STATE_DIR = '.jenkins/previous-state'
-        PORT_FORWARD_LOG = '.jenkins/port-forward.log'
-        PORT_FORWARD_PID = '.jenkins/port-forward.pid'
+        PACKAGE_DIR = '.jenkins/vm-package'
     }
 
     stages {
@@ -32,22 +29,33 @@ pipeline {
                 script {
                     env.GIT_SHA = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
                     env.IMAGE_TAG = env.GIT_SHA.take(12)
-                    env.GIT_BRANCH_NAME = env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-                    env.BACKEND_IMAGE = "${params.IMAGE_REGISTRY}/${params.IMAGE_REPOSITORY_PREFIX}/backend:${env.IMAGE_TAG}"
-                    env.FRONTEND_IMAGE = "${params.IMAGE_REGISTRY}/${params.IMAGE_REPOSITORY_PREFIX}/frontend:${env.IMAGE_TAG}"
+                    def branchName = (env.BRANCH_NAME ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD')).trim()
+                    def deployBranch = (params.DEPLOY_BRANCH ?: '').trim()
+                    env.GIT_BRANCH_NAME = branchName.replaceFirst(/^origin\//, '')
+                    env.DEPLOY_BRANCH_NAME = deployBranch.replaceFirst(/^origin\//, '')
+                    env.SHOULD_DEPLOY = (!env.CHANGE_ID && env.GIT_BRANCH_NAME == env.DEPLOY_BRANCH_NAME) ? 'true' : 'false'
+
+                    echo """
+Deploy gate:
+  branch=${env.GIT_BRANCH_NAME}
+  deployBranch=${env.DEPLOY_BRANCH_NAME}
+  changeId=${env.CHANGE_ID ?: ''}
+  shouldDeploy=${env.SHOULD_DEPLOY}
+"""
                 }
-                sh 'rm -rf "$STATE_DIR" "$PORT_FORWARD_PID" "$PORT_FORWARD_LOG" && mkdir -p "$STATE_DIR"'
+                sh 'rm -rf .jenkins && mkdir -p "$PACKAGE_DIR"'
             }
         }
 
-        stage('Verify Agent Tools') {
+        stage('Verify Agent') {
             steps {
                 sh '''
                     set -eu
                     command -v curl
-                    command -v sed
+                    command -v docker
+                    command -v scp
+                    command -v ssh
                     docker version
-                    kubectl version --client
                 '''
             }
         }
@@ -89,149 +97,106 @@ pipeline {
                     docker build \
                       --build-arg UTEC_IA_VERSION="$IMAGE_TAG" \
                       --build-arg UTEC_IA_COMMIT_SHA="$GIT_SHA" \
-                      -t "$BACKEND_IMAGE" \
+                      -t "${BACKEND_IMAGE_NAME}:${IMAGE_TAG}" \
                       backend
 
                     docker build \
                       --build-arg UTEC_IA_VERSION="$IMAGE_TAG" \
                       --build-arg UTEC_IA_COMMIT_SHA="$GIT_SHA" \
-                      -t "$FRONTEND_IMAGE" \
+                      -t "${FRONTEND_IMAGE_NAME}:${IMAGE_TAG}" \
                       frontend
                 '''
             }
         }
 
-        stage('Publish Images') {
+        stage('Deploy VM') {
             when {
                 expression {
-                    return !env.CHANGE_ID && env.GIT_BRANCH_NAME == params.DEPLOY_BRANCH
+                    return env.SHOULD_DEPLOY == 'true'
                 }
             }
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: params.REGISTRY_CREDENTIALS_ID,
-                    usernameVariable: 'REGISTRY_USERNAME',
-                    passwordVariable: 'REGISTRY_PASSWORD'
-                )]) {
-                    sh '''
+                script {
+                    def deployScript = '''
+                        set +x
                         set -eu
-                        echo "$REGISTRY_PASSWORD" | docker login "$IMAGE_REGISTRY" --username "$REGISTRY_USERNAME" --password-stdin
-                        docker push "$BACKEND_IMAGE"
-                        docker push "$FRONTEND_IMAGE"
+                        VM_HOST_EFFECTIVE="${VM_HOST_FROM_CREDENTIAL:-}"
+                        VM_USER_EFFECTIVE="${SSH_USER_FROM_CREDENTIAL:-}"
+
+                        if [ -z "$VM_HOST_EFFECTIVE" ]; then
+                          echo "Falta credencial VM_HOST_CREDENTIALS_ID." >&2
+                          exit 2
+                        fi
+
+                        if [ -z "$VM_USER_EFFECTIVE" ]; then
+                          echo "Falta username en la credencial SSH." >&2
+                          exit 2
+                        fi
+
+                        VM_HOST="$VM_HOST_EFFECTIVE" \
+                        VM_USER="$VM_USER_EFFECTIVE" \
+                        VM_PORT="$VM_PORT" \
+                        VM_APP_DIR="${VM_APP_DIR:-/home/$VM_USER_EFFECTIVE/utec-ia}" \
+                        SSH_KEY="$SSH_KEY" \
+                        IMAGE_TAG="$IMAGE_TAG" \
+                        BACKEND_IMAGE="$BACKEND_IMAGE_NAME" \
+                        FRONTEND_IMAGE="$FRONTEND_IMAGE_NAME" \
+                        FRONTEND_PORT="$VM_FRONTEND_PORT" \
+                        UTEC_IA_VERSION="$IMAGE_TAG" \
+                        UTEC_IA_COMMIT_SHA="$GIT_SHA" \
+                        UTEC_IA_ENVIRONMENT="vm-ubuntu" \
+                        sh scripts/vm-deploy.sh
                     '''
+
+                    def sshCredential = sshUserPrivateKey(
+                        credentialsId: params.SSH_CREDENTIALS_ID,
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER_FROM_CREDENTIAL'
+                    )
+
+                    withCredentials([
+                        sshCredential,
+                        string(credentialsId: params.VM_HOST_CREDENTIALS_ID, variable: 'VM_HOST_FROM_CREDENTIAL')
+                    ]) {
+                        sh deployScript
+                    }
                 }
             }
         }
 
-        stage('Deploy Kubernetes') {
+        stage('Smoke VM') {
             when {
                 expression {
-                    return !env.CHANGE_ID && env.GIT_BRANCH_NAME == params.DEPLOY_BRANCH
+                    return env.SHOULD_DEPLOY == 'true'
                 }
             }
             steps {
-                withCredentials([file(credentialsId: params.KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
-                    sh '''
+                script {
+                    def smokeScript = '''
+                        set +x
                         set -eu
-                        export KUBECONFIG="$KUBECONFIG_FILE"
-                        mkdir -p "$STATE_DIR"
+                        VM_HOST_EFFECTIVE="${VM_HOST_FROM_CREDENTIAL:-}"
 
-                        kubectl cluster-info
-
-                        if kubectl get namespace "$K8S_NAMESPACE" >/dev/null 2>&1; then
-                          kubectl -n "$K8S_NAMESPACE" get configmap utec-ia-config -o yaml > "$STATE_DIR/configmap.yaml" 2>/dev/null || true
-                          kubectl -n "$K8S_NAMESPACE" get deployment/backend -o jsonpath='{.spec.template.spec.containers[?(@.name=="backend")].image}' > "$STATE_DIR/backend-image.txt" 2>/dev/null || true
-                          kubectl -n "$K8S_NAMESPACE" get deployment/backend -o jsonpath='{.spec.template.spec.containers[?(@.name=="backend")].env[?(@.name=="UTEC_IA_VERSION")].value}' > "$STATE_DIR/backend-version.txt" 2>/dev/null || true
-                          kubectl -n "$K8S_NAMESPACE" get deployment/backend -o jsonpath='{.spec.template.spec.containers[?(@.name=="backend")].env[?(@.name=="UTEC_IA_COMMIT_SHA")].value}' > "$STATE_DIR/backend-commit.txt" 2>/dev/null || true
-                          kubectl -n "$K8S_NAMESPACE" get deployment/frontend -o jsonpath='{.spec.template.spec.containers[?(@.name=="frontend")].image}' > "$STATE_DIR/frontend-image.txt" 2>/dev/null || true
-                        else
-                          : > "$STATE_DIR/backend-image.txt"
-                          : > "$STATE_DIR/backend-version.txt"
-                          : > "$STATE_DIR/backend-commit.txt"
-                          : > "$STATE_DIR/frontend-image.txt"
+                        if [ -z "$VM_HOST_EFFECTIVE" ]; then
+                          echo "Falta credencial VM_HOST_CREDENTIALS_ID." >&2
+                          exit 2
                         fi
 
-                        touch "$STATE_DIR/deploy-started"
-
-                        kubectl kustomize k8s/base \
-                          | sed -e "s/name: utec-ia-pilot/name: ${K8S_NAMESPACE}/g" \
-                                -e "s/namespace: utec-ia-pilot/namespace: ${K8S_NAMESPACE}/g" \
-                          | kubectl apply -f -
-
-                        if [ -n "$IMAGE_PULL_SECRET" ]; then
-                          kubectl -n "$K8S_NAMESPACE" patch serviceaccount utec-ia-backend --type merge -p "{\\"imagePullSecrets\\":[{\\"name\\":\\"$IMAGE_PULL_SECRET\\"}]}"
-                          kubectl -n "$K8S_NAMESPACE" patch serviceaccount utec-ia-frontend --type merge -p "{\\"imagePullSecrets\\":[{\\"name\\":\\"$IMAGE_PULL_SECRET\\"}]}"
-                        fi
-
-                        kubectl -n "$K8S_NAMESPACE" set image deployment/backend backend="$BACKEND_IMAGE"
-                        kubectl -n "$K8S_NAMESPACE" set image deployment/frontend frontend="$FRONTEND_IMAGE"
-                        kubectl -n "$K8S_NAMESPACE" set env deployment/backend UTEC_IA_VERSION="$IMAGE_TAG" UTEC_IA_COMMIT_SHA="$GIT_SHA"
-
-                        kubectl -n "$K8S_NAMESPACE" rollout status deployment/backend --timeout=120s
-                        kubectl -n "$K8S_NAMESPACE" rollout status deployment/frontend --timeout=120s
-                    '''
-                }
-            }
-        }
-
-        stage('Smoke Test') {
-            when {
-                expression {
-                    return !env.CHANGE_ID && env.GIT_BRANCH_NAME == params.DEPLOY_BRANCH
-                }
-            }
-            steps {
-                withCredentials([file(credentialsId: params.KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
-                    sh '''
-                        set -eu
-                        export KUBECONFIG="$KUBECONFIG_FILE"
-
-                        if [ "$USE_PORT_FORWARD" = "true" ]; then
-                          kubectl -n "$K8S_NAMESPACE" port-forward svc/frontend 18080:80 > "$PORT_FORWARD_LOG" 2>&1 &
-                          echo "$!" > "$PORT_FORWARD_PID"
-                        fi
-
+                        FRONTEND_SMOKE_URL="http://${VM_HOST_EFFECTIVE}:${VM_FRONTEND_PORT}"
                         sh scripts/smoke-test.sh "$FRONTEND_SMOKE_URL" "$IMAGE_TAG" "$GIT_SHA"
                     '''
+
+                    withCredentials([string(credentialsId: params.VM_HOST_CREDENTIALS_ID, variable: 'VM_HOST_FROM_CREDENTIAL')]) {
+                        sh smokeScript
+                    }
                 }
             }
         }
     }
 
     post {
-        failure {
-            script {
-                if (fileExists("${env.STATE_DIR}/deploy-started")) {
-                    withCredentials([file(credentialsId: params.KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
-                        sh '''
-                            set +e
-                            export KUBECONFIG="$KUBECONFIG_FILE"
-                            if [ "$USE_PORT_FORWARD" = "true" ] && [ ! -f "$PORT_FORWARD_PID" ]; then
-                              kubectl -n "$K8S_NAMESPACE" port-forward svc/frontend 18080:80 > "$PORT_FORWARD_LOG" 2>&1 &
-                              echo "$!" > "$PORT_FORWARD_PID"
-                              sleep 3
-                            fi
-                            sh scripts/k8s-recover.sh "$K8S_NAMESPACE" "$STATE_DIR" "$FRONTEND_SMOKE_URL"
-                            kubectl -n "$K8S_NAMESPACE" get pods -o wide
-                            kubectl -n "$K8S_NAMESPACE" get events --sort-by=.lastTimestamp | tail -n 30
-                        '''
-                    }
-                } else {
-                    echo 'No se inicio despliegue; no corresponde rollback.'
-                }
-            }
-        }
-
         always {
-            script {
-                if (fileExists(env.PORT_FORWARD_PID)) {
-                    sh '''
-                        set +e
-                        kill "$(cat "$PORT_FORWARD_PID")" 2>/dev/null
-                        rm -f "$PORT_FORWARD_PID"
-                    '''
-                }
-            }
+            sh 'rm -rf "$PACKAGE_DIR"'
         }
     }
 }
